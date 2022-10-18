@@ -1,5 +1,16 @@
 //import processing.svg.*;
 
+// 1. move draftArray creating to a lifting function
+// 2. enable clicking the image for a new pattern gen
+
+// 3. build out frame lift plan for all 40 rows
+// 3a. random frames for each row
+// 3b. play with patterning
+// 3c. play with inverting (color and direction)
+
+// 4. glitching the final pattern 
+// 4a. hit 'g' on keyboard for a new random glitch
+
 int gridSize; // size of each cell in the output
 
 // 4-frame direct tie-up loom
