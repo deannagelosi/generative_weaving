@@ -28,16 +28,15 @@ void setup() {
 void draw() {
   background(255); // white
   
-  int[] selection = chooseFrames();
-  int[] rowLift = combineFrames(selection, allFrames);
+  int[][] allRowLifts = new int[40][0];
+  for (int i=0; i<40; i++) {
+    int[] selection = chooseFrames();
+    int[] rowLift = combineFrames(selection, allFrames);
+    allRowLifts[i] = rowLift;
+  }
   
-  //for () {
-  
-  //}
-  
-  //boolean[][] draftArray = createDraft(allRowLifts);
-
-  //printDraft(draftArray); 
+  boolean[][] draftArray = createDraft(allRowLifts);  
+  printDraft(draftArray); 
   
   noLoop();
 }
