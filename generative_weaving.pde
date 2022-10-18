@@ -1,8 +1,5 @@
 //import processing.svg.*;
 
-// 1. move draftArray creating to a lifting function
-// 2. enable clicking the image for a new pattern gen
-
 // 3. build out frame lift plan for all 40 rows
 // 3a. random frames for each row
 // 3b. play with patterning
@@ -11,7 +8,10 @@
 // 4. glitching the final pattern 
 // 4a. hit 'g' on keyboard for a new random glitch
 
-int gridSize; // size of each cell in the output
+// stretch: enable clicking the image for a new pattern gen
+
+
+int rectSize; // size of each cell in the output
 
 // 4-frame direct tie-up loom
 int[] frame1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
@@ -21,7 +21,7 @@ int[] frame4 = {4, 8, 12, 16, 20, 24, 28, 32, 36, 40};
 int[][] allFrames = {frame1, frame2, frame3, frame4};
 
 void setup() {
-  gridSize = 20;
+  rectSize = 20;
   size(800, 800);
 }
 
@@ -29,27 +29,48 @@ void draw() {
   background(255); // white
   
   int[] selection = chooseFrames();
-  int[] allWarps = combineFrames(selection, allFrames);
+  int[] rowLift = combineFrames(selection, allFrames);
+  
+  //for () {
+  
+  //}
+  
+  //boolean[][] draftArray = createDraft(allRowLifts);
 
-  // define draft
-  // boolean[col = x][rows = y]
-  boolean[][] draftArray = new boolean[40][40];
-  for (int y=0; y<40; y++) {
-    for (int x=0; x<40; x++) {
-      //draftArray[x][y] = true;
-      // is column 1 in frame 2? no --> return false
-      if (arrayContains(allWarps, x+1)) {
-        draftArray[x][y] = true;
+  //printDraft(draftArray); 
+  
+  noLoop();
+}
+
+boolean[][] createDraft(int[][] allRowLifts) {
+  
+  //allRowLifts = 
+  //  {
+  //    {1, 5, 9, 13, 17, 21, 25, 29, 33, 37},
+  //    {2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40},
+  //    {3, 7, 11, 15, 19, 23, 27, 31, 35, 39}
+  //  };
+  
+  //allRowLifts[1] -> {2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40}
+  
+  
+  // allRowLifts is all the warp lifts on each row of the draft
+  
+  boolean[][] draftArray = new boolean[40][40]; // boolean[row][col]
+  
+  for (int row = 0; row < 40; row++) {
+    for (int col = 0; col < 40; col++) {
+   
+      // is column 1 in the seclected frames? no --> return false
+      if (arrayContains(allRowLifts[row], col+1)) {
+        draftArray[row][col] = true;
       } else {
-        draftArray[x][y] = false;
+        draftArray[row][col] = false;
       }
     }
   }
-
-  printDraft(draftArray);
   
-  
-  noLoop();
+  return draftArray;
 }
 
 boolean arrayContains(int[] array, int check) {
@@ -84,32 +105,48 @@ int[] chooseFrames() {
 }
 
 void printDraft(boolean[][] draftArray) {
-  // starting in the bottom left corner
-  for (int y=height-gridSize; y>0; y-=gridSize) {
-    for (int x=0; x<width; x+=gridSize) {
-      // convert from pixel to cell position
-      if (draftArray[x/gridSize][y/gridSize] == true) {
-        fill(0);
+  // Read row data by counting from 0 to 39, moving down each row.
+  // Read column data by counting from 0 to 39, moving across the row.
+  for (int row = 0; row < 40; row++) {
+    for (int col = 0; col < 40; col++) {
+      
+      // 1. Detect if each cell is true (yarn up) or false (yarn down)
+      if (draftArray[row][col] == true) {
+        fill(0); // black
       } else {
-        fill(255);
+        fill(255); // white
       }
-      rect(x, y, gridSize, gridSize);
+      
+      // 2. Draw black and white rects in a grid to represent the draft result.
+      // **Note**: The swatch is woven from the bottom up, upside down of how the array stores data.
+      // 2a. Convert each row to a y pixel position.
+      // - The top of the canvas is y 0, the bottom of the canvas is y height.
+      // - Start y at image height (minus the rect height), and move towards pixelY = 0. (780 -> 0)
+      // 2b. Convert each col to a x pixel position.
+      // - Start x at 0 and move pixelX towards the image width (minus the rect width). (0 -> 780)
+      
+      // tl;dr - Start in the bottom left corner when printing the swatch.
+     
+      int pixelX = col * rectSize;      
+      int pixelY = height - (row * rectSize) - rectSize;
+       
+      rect(pixelX, pixelY, rectSize, rectSize);
     }
   }
 }
 
 int[] combineFrames(int[] selection, int[][] allFrames) {
-  int[] allWarps = new int[0];
+  int[] liftWarps = new int[0];
   
   // index allFrames by selection
   for (int frame : selection) {
     //printArray(allFrames[frame - 1]);
     // combine frames selected
-    allWarps = concat(allWarps, allFrames[frame - 1]);
+    liftWarps = concat(liftWarps, allFrames[frame - 1]);
   }
   println("selection: ");
   printArray(selection);
   println("allWarps: ");
-  printArray(allWarps);
-  return allWarps;
+  printArray(liftWarps);
+  return liftWarps;
 }
