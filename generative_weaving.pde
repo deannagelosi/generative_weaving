@@ -1,5 +1,4 @@
 //import processing.svg.*;
-import java.util.Arrays;
 
 int gridSize; // size of each cell in the output
 
@@ -8,6 +7,7 @@ int[] frame1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
 int[] frame2 = {2, 6, 10, 14, 18, 22, 26, 30, 34, 38};
 int[] frame3 = {3, 7, 11, 15, 19, 23, 27, 31, 35, 39};
 int[] frame4 = {4, 8, 12, 16, 20, 24, 28, 32, 36, 40};
+int[][] allFrames = {frame1, frame2, frame3, frame4};
 
 void setup() {
   gridSize = 20;
@@ -16,6 +16,9 @@ void setup() {
 
 void draw() {
   background(255); // white
+  
+  int[] selection = chooseFrames();
+  int[] allWarps = combineFrames(selection, allFrames);
 
   // define draft
   // boolean[col = x][rows = y]
@@ -24,7 +27,7 @@ void draw() {
     for (int x=0; x<40; x++) {
       //draftArray[x][y] = true;
       // is column 1 in frame 2? no --> return false
-      if (arrayContains(frame2, x+1)) {
+      if (arrayContains(allWarps, x+1)) {
         draftArray[x][y] = true;
       } else {
         draftArray[x][y] = false;
@@ -33,7 +36,8 @@ void draw() {
   }
 
   printDraft(draftArray);
-
+  
+  
   noLoop();
 }
 
@@ -53,15 +57,15 @@ boolean randomBool() {
   return random(0, 1) <= 0.5;
 }
 
-ArrayList<Integer> chooseFrames() {
+int[] chooseFrames() {
   // create array defining which frames to lift
-  ArrayList<Integer> selection = new ArrayList<Integer>();
+  int[] selection = new int[0];
   // randomly selects 1, 2, or 3 frames to lift
-  while ((selection.size() == 0) || (selection.size() == 4)) {
-    selection.clear();
+  while ((selection.length == 0) || (selection.length == 4)) {
+    selection = new int[0];
     for (int i = 1; i < 5; i++) {
       if (randomBool() == true) {
-        selection.add(i);
+        selection = append(selection, i);
       }
     }
   }
@@ -81,4 +85,20 @@ void printDraft(boolean[][] draftArray) {
       rect(x, y, gridSize, gridSize);
     }
   }
+}
+
+int[] combineFrames(int[] selection, int[][] allFrames) {
+  int[] allWarps = new int[0];
+  
+  // index allFrames by selection
+  for (int frame : selection) {
+    //printArray(allFrames[frame - 1]);
+    // combine frames selected
+    allWarps = concat(allWarps, allFrames[frame - 1]);
+  }
+  println("selection: ");
+  printArray(selection);
+  println("allWarps: ");
+  printArray(allWarps);
+  return allWarps;
 }
