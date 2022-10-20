@@ -1,7 +1,6 @@
 import processing.svg.*;
 
 // today
-// press s to save
 // perlin noise influences which shafts are lifted
 // play with inverting rows (mirror or up/down flip)
 
@@ -35,7 +34,8 @@ void draw() {
   
   int[][] allWarps = new int[40][0];
   for (int i=0; i<40; i++) {
-    int[] shaftSelection = chooseShafts(); // ex: [2,4]
+    int[] shaftSelection = chooseRandomShafts(); // ex: [2,4]
+    //int[] shaftSelection = choosePerlinShafts();
     int[] warpLift = shafts2Warps(shaftSelection, allShafts); // ex: [2, 6, 10, ... 32, 36, 40]
     allWarps[i] = warpLift;
   }
@@ -75,8 +75,8 @@ boolean arrayContains(int[] array, int check) {
   return false;
 }
 
-int[] chooseShafts() {
-  // create array defining which shafts to lift
+int[] chooseRandomShafts() {
+  // create array defining which random shafts to lift
   
   int[] shaftSelection = new int[0]; 
   while ((shaftSelection.length == 0) || (shaftSelection.length == 4)) { 
@@ -88,6 +88,23 @@ int[] chooseShafts() {
       }
     }
   }
+  
+  return shaftSelection;
+}
+
+int[] choosePerlinShafts(int i) {
+  // create array defining which shafts to lift based on Perlin noise field
+  
+  int[] shaftSelection = new int[0]; 
+  //while ((shaftSelection.length == 0) || (shaftSelection.length == 4)) { 
+  //  // randomly selects 1, 2, or 3 shafts to lift
+  //  shaftSelection = new int[0];
+  //  for (int i = 1; i < 5; i++) {
+  //    if (randomBool() == true) {
+  //      shaftSelection = append(shaftSelection, i);
+  //    }
+  //  }
+  //}
   
   return shaftSelection;
 }
