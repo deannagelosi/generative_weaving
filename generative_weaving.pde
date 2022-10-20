@@ -1,13 +1,13 @@
-//import processing.svg.*;
+import processing.svg.*;
 
-// 2a. click to generate new image
-// 2b. press s to save
+// today
+// press s to save
+// perlin noise influences which shafts are lifted
+// play with inverting rows (mirror or up/down flip)
 
-// 3b. play with patterning
-// 3c. play with inverting (color and direction)
+// glitching the final pattern (first, manually)
 
-// 4. glitching the final pattern 
-// 4a. press 'g' for a new random glitch
+// stretch: press 'g' for a new random glitch
 
 // Declare global variables
 int rectSize = 20; // size of each cell in the output 
@@ -19,8 +19,15 @@ int[] shaft3 = {3, 7, 11, 15, 19, 23, 27, 31, 35, 39};
 int[] shaft4 = {4, 8, 12, 16, 20, 24, 28, 32, 36, 40};
 int[][] allShafts = {shaft1, shaft2, shaft3, shaft4};
 
+// overrides filename until saved, series # randomly selected
+String filename;
+int series;
+int fileIndex;
+
 void setup() {
   size(800, 800);
+  fileIndex = 1;
+  series = (int)random(1000);
 }
 
 void draw() {
@@ -102,7 +109,9 @@ int[] shafts2Warps(int[] selection, int[][] allShafts) {
 }
 
 void printDraft(boolean[][] draftArray) {
+  filename = "drawdowns/drawdown-" + series + "-" + fileIndex + ".svg";
   
+  beginRecord(SVG, filename);
   // read row data by counting from 0 to 39, moving down each row.
   // read column data by counting from 0 to 39, moving across the row.
   for (int row = 0; row < 40; row++) {
@@ -121,8 +130,16 @@ void printDraft(boolean[][] draftArray) {
       rect(pixelX, pixelY, rectSize, rectSize);
     }
   }
+  
+  endRecord();
 }
 
 void mousePressed() {
   loop();
+}
+
+void keyPressed() {
+  if (key == 's') {
+    fileIndex++;
+  }
 }
