@@ -13,7 +13,6 @@ import processing.svg.*;
 
 // Declare global variables
 int rectSize = 15; // size of each cell in the output
-int padding = 30;
 int weftQuant = 40;
 int warpQuant = 40;
 
@@ -31,22 +30,22 @@ int series;
 int fileIndex;
 
 void setup() {
-  size(800, 800);
+  size(705, 705); // 47 rects wide and high
   fileIndex = 1;
   series = (int)random(1000);
 }
 
 void draw() {
-  background(255); // white
+  background(100); // dark grey
 
   int[][] liftPlan = new int[weftQuant][0];
-  for (int i=0; i<weftQuant; i++) {
+  for (int i=0; i < weftQuant; i++) {
     int[] shaftSelection = chooseRandomShafts(); // ex: [2,4]
     liftPlan[i] = shaftSelection;
   }
 
   int[][] drawdown = createDrawdown(liftPlan);
-  printDraft(drawdown);
+  printDraft(drawdown, liftPlan);
 
   noLoop();
 }
@@ -86,29 +85,89 @@ int[][] createDrawdown(int[][] liftPlan) {
   return drawdown;
 }
 
-void printDraft(int[][] drawdown) {
+void printDraft(int[][] drawdown, int[][] liftPlan) {
   // visual output for draft
 
   filename = "drawdowns/drawdown-" + series + "-" + fileIndex + ".svg";
 
   beginRecord(SVG, filename);
+
+  int padding = rectSize;
+  int liftPlanWidth = numShafts * rectSize;
+  int threadingHeight = numShafts * rectSize;
   
+  // print tie ups
+  int[][] tieUps = {{1}, {2}, {3}, {4}};
+  
+  for (int row = 0; row < tieUps.length; row++) {
+    for (int col = 0; col < numShafts; col++) {
+
+      if (arrayContains(tieUps[row], col + 1)) {
+        fill(0); // fill rectangle with black
+      } else {
+        fill(255); // no fill
+      }
+
+      // draw rectangle
+      int pixelX = liftPlanWidth - (col * rectSize);
+      int pixelY = threadingHeight - (row * rectSize);
+
+      rect(pixelX, pixelY, rectSize, rectSize);
+    }
+  }
+
+  // print lift plan
+  for (int row = 0; row < liftPlan.length; row++) {
+    for (int col = 0; col < numShafts; col++) {
+
+      if (arrayContains(liftPlan[row], col + 1)) {
+        fill(0); // fill rectangle with black
+      } else {
+        fill(255); // no fill
+      }
+
+      // draw rectangle
+      int pixelX = liftPlanWidth - (col * rectSize);
+      int pixelY = 2*padding + threadingHeight + (row * rectSize);
+
+      rect(pixelX, pixelY, rectSize, rectSize);
+    }
+  }
+
+  // print threading
+  for (int row = 0; row < threading.length; row++) {
+    for (int col = 0; col < warpQuant; col++) {
+
+      if (arrayContains(threading[row], col + 1)) {
+        fill(0); // fill rectangle with black
+      } else {
+        fill(255); // no fill
+      }
+
+      // draw rectangle
+      int pixelX = 2*padding + liftPlanWidth + (col * rectSize);
+      int pixelY = threadingHeight - (row * rectSize);
+
+      rect(pixelX, pixelY, rectSize, rectSize);
+    }
+  }
+
+  // print drawdown
   for (int row = 0; row < drawdown.length; row++) {
     for (int col = 0; col < warpQuant; col++) {
-      
+
       if (arrayContains(drawdown[row], col + 1)) {
         fill(0); // fill rectangle with black, raised warp
       } else {
         fill(255); // no fill, lowered warp
       }
-    
+
       // draw rectangle
-      int pixelX = width - col * rectSize - padding;
-      int pixelY = height - (row * rectSize) - rectSize - padding; // starts at the bottom of the canvas
-  
+      int pixelX = 2*padding + liftPlanWidth + (col * rectSize);
+      int pixelY = 2*padding + threadingHeight + (row * rectSize);
+
       rect(pixelX, pixelY, rectSize, rectSize);
     }
-
   }
 
   endRecord();
@@ -128,7 +187,7 @@ void keyPressed() {
 // helper functions
 boolean arrayContains(int[] array, int check) {
   // checks if the array contains an integer
-  
+
   for (int item : array) {
     if (item == check) {
       return true;
