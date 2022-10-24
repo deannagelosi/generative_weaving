@@ -18,13 +18,16 @@ import processing.svg.*;
 // Declare global variables
 int rectSize = 15; // size of each cell in the output 
 int padding = 30;
+int weftQuant = 40;
+int warpQuant = 40;
 
 // 4-shaft direct tie-up loom
 int[] shaft1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
 int[] shaft2 = {2, 6, 10, 14, 18, 22, 26, 30, 34, 38};
 int[] shaft3 = {3, 7, 11, 15, 19, 23, 27, 31, 35, 39};
 int[] shaft4 = {4, 8, 12, 16, 20, 24, 28, 32, 36, 40};
-int[][] allShafts = {shaft1, shaft2, shaft3, shaft4};
+int[][] tieUps = {shaft1, shaft2, shaft3, shaft4};
+int numShafts = tieUps.length;
 
 // overrides filename until saved, series # randomly selected
 String filename;
@@ -40,35 +43,56 @@ void setup() {
 void draw() {
   background(255); // white
   
-  int[][] allWarps = new int[40][0];
-  for (int i=0; i<40; i++) {
+  int[][] liftPlan = new int[weftQuant][0];
+  for (int i=0; i<weftQuant; i++) {
     int[] shaftSelection = chooseRandomShafts(); // ex: [2,4]
-    //int[] shaftSelection = choosePerlinShafts();
-    int[] warpLift = shafts2Warps(shaftSelection, allShafts); // ex: [2, 6, 10, ... 32, 36, 40]
-    allWarps[i] = warpLift;
+    liftPlan[i] = shaftSelection;
   }
   
-  boolean[][] draftArray = createDraft(allWarps);  // ex: [[false, true, false ... false, false, true], ... ]
+  boolean[][] draftArray = createDraft(liftPlan);  // ex: [[false, true, false ... false, false, true], ... ]
   printDraft(draftArray); 
   
   noLoop();
 }
 
-boolean[][] createDraft(int[][] allWarps) {
-  // converts warp #s into true/false for all rows for print function
+boolean[][] createDraft(int[][] liftPlan) {
+  // mirroring and tiling lift plan, then convert into true/false for all rows
   
-  boolean[][] draftArray = new boolean[40][40]; // boolean[row][col]
-  
-  for (int row = 0; row < 40; row++) {
-    for (int col = 0; col < 40; col++) {
-   
-      if (arrayContains(allWarps[row], col+1)) {
-        draftArray[row][col] = true;
-      } else {
-        draftArray[row][col] = false;
-      }
+  for (int row = 0; row < liftPlan.length; row++) {
+    
+    int[] draftRow;
+    
+    for (int shaft = 0; shaft < numShafts; shaft++) {
+      int currentShaft = liftPlan[row][shaft]; 
+      int[] draftRowSoFar = tieUp[currentShaft - 1]
+      
+      // concat draftrowsofar to draftwor
     }
+    
+    // sort the draft row
   }
+  // do this in print() -> convert the draft row to trues/falses
+  
+  /// --------------
+  
+  // use the lift plan to create the drawdown
+  //int[][] drawdown = new int[weftQuant][0];
+  //for (int weft = 0; weft < liftPlan.length; weft++) {
+  //  drawdown[weft] = reverse(liftPlan[weft]);
+  //}
+  
+  //boolean[][] draftArray = new boolean[weftQuant][warpQuant]; // boolean[row][col]
+  
+  //for (int weft = 0; weft < weftQuant; weft++) {
+  //  for (int warp = 0; warp < warpQuant; warp++) {
+   
+  //    if (arrayContains(liftPlan[weft], warp+1)) {
+  //      draftArray[weft][warp] = true;
+  //    } else {
+  //      draftArray[weft][warp] = false;
+  //    }
+  //  }
+  //}
   
   return draftArray;
 }
