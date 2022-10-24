@@ -1,6 +1,13 @@
 import processing.svg.*;
 
-// today
+// UI changes
+// make canvas bigger (done)
+// make cells smaller (done)
+// pad around print()
+// add tie ups and lift plan
+// convert 4 to 8-shafts
+
+
 // perlin noise influences which shafts are lifted
 // play with inverting rows (mirror or up/down flip)
 
@@ -9,7 +16,8 @@ import processing.svg.*;
 // stretch: press 'g' for a new random glitch
 
 // Declare global variables
-int rectSize = 20; // size of each cell in the output 
+int rectSize = 15; // size of each cell in the output 
+int padding = 30;
 
 // 4-shaft direct tie-up loom
 int[] shaft1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
@@ -141,12 +149,17 @@ void printDraft(boolean[][] draftArray) {
         fill(255); // white
       }
      
-      int pixelX = col * rectSize;      
-      int pixelY = height - (row * rectSize) - rectSize; // starts at the bottom of the canvas
+      int pixelX = width - col * rectSize - padding;      
+      int pixelY = height - (row * rectSize) - rectSize - padding; // starts at the bottom of the canvas
        
       rect(pixelX, pixelY, rectSize, rectSize);
     }
   }
+  
+  
+  
+  
+  
   
   endRecord();
 }
