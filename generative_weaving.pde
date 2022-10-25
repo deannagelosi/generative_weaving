@@ -1,28 +1,37 @@
 import processing.svg.*;
 
-// UI changes
-// add threading and lift plan to print
-// convert 4 to 8-shafts
+// to dos
+// learn how to do Processing in VS Code
 
-// perlin noise influences which shafts are lifted
-// play with inverting rows (mirror or up/down flip)
+// start from a known structure (satin, twill) for X rows
+// apply perlin noise to slightly alter the structure for X rows
+// repeat on previous rows, continues to evolve (i.e. game of telephone)
+// ends with a different looking but similar struture to first X rows
+// predefined total number of rows (weftQuant)
 
-// glitching the final pattern (first, manually)
-
-// stretch: press 'g' for a new random glitch
 
 // Declare global variables
 int rectSize = 15; // size of each cell in the output
 int weftQuant = 40;
 int warpQuant = 40;
 
-// 4-shaft direct tie-up loom
+// 4-shaft straight draft
 int[] shaft1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
 int[] shaft2 = {2, 6, 10, 14, 18, 22, 26, 30, 34, 38};
 int[] shaft3 = {3, 7, 11, 15, 19, 23, 27, 31, 35, 39};
 int[] shaft4 = {4, 8, 12, 16, 20, 24, 28, 32, 36, 40};
 int[][] threading = {shaft1, shaft2, shaft3, shaft4};
 int numShafts = threading.length;
+
+// weave pattern
+int[][] twoByTwoTwill = {
+  {2, 3}, 
+  {3, 4}, 
+  {1, 4}, 
+  {3, 4}, 
+  {2, 3}, 
+  {1, 2}
+};
 
 // overrides filename until saved, series # randomly selected
 String filename;
@@ -37,18 +46,56 @@ void setup() {
 
 void draw() {
   background(100); // dark grey
-
+  
+  int rowPosition = 0;
+  
   int[][] liftPlan = new int[weftQuant][0];
-  for (int i=0; i < weftQuant; i++) {
-    int[] shaftSelection = chooseRandomShafts(); // ex: [2,4]
-    liftPlan[i] = shaftSelection;
+  for (int i=0; i < twoByTwoTwill.length; i++) {
+    liftPlan[i] = twoByTwoTwill[i];
+    rowPosition++;
   }
+  
+  int[][] modifiedPattern = devolution(twoByTwoTwill);
+  for (int i=0; i < modifiedPattern.length; i++) {
+    liftPlan[i + rowPosition] = modifiedPattern[i];
+  }
+  
+  // a satin struture is defined as this array (lift plan)
+  // global variable
+  // stretch goal: more strutures that you can keyboard select
+  // starts with satin
+  // for loop, within it there's a Perlin noise function that adjusts the lift plan
+  // add this new new segment to the lift plan
+  // once lift plan is complete (all weftQuant complete), then returns lift plan
+  // print lift plan, draw down, etc
+  
+  
+
+  //int[][] liftPlan = new int[weftQuant][0];
+  //for (int i=0; i < weftQuant; i++) {
+  //  int[] shaftSelection = chooseRandomShafts(); // ex: [2,4]
+  //  liftPlan[i] = shaftSelection;
+  //}
 
   int[][] drawdown = createDrawdown(liftPlan);
   printDraft(drawdown, liftPlan);
 
   noLoop();
 }
+
+int[][] devolution(int[][] weaveSegment) {
+  //int[][] modifiedWeaveSegment;
+  
+  // takes in a segment of the lift plan
+  // modifies it using Perlin noise
+  // returns the next segment of the lift plan
+  
+  // note: doesn't have to return the same number of rows
+  
+  return weaveSegment; // to do: change this to the modified return
+}
+
+
 
 int[] chooseRandomShafts() {
   // create array defining which random shafts to lift
