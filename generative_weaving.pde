@@ -46,36 +46,32 @@ void setup() {
 
 void draw() {
   background(100); // dark grey
-  
-  int rowPosition = 0;
-  
+    
   int[][] liftPlan = new int[weftQuant][0];
   for (int i=0; i < twoByTwoTwill.length; i++) {
     liftPlan[i] = twoByTwoTwill[i];
-    rowPosition++;
   }
   
-  int[][] modifiedPattern = devolution(twoByTwoTwill);
-  for (int i=0; i < modifiedPattern.length; i++) {
-    liftPlan[i + rowPosition] = modifiedPattern[i];
-  }
-  
-  // a satin struture is defined as this array (lift plan)
-  // global variable
-  // stretch goal: more strutures that you can keyboard select
-  // starts with satin
-  // for loop, within it there's a Perlin noise function that adjusts the lift plan
-  // add this new new segment to the lift plan
-  // once lift plan is complete (all weftQuant complete), then returns lift plan
-  // print lift plan, draw down, etc
-  
-  
+  int rowPosition = twoByTwoTwill.length - 1;
+  println(rowPosition);
 
-  //int[][] liftPlan = new int[weftQuant][0];
-  //for (int i=0; i < weftQuant; i++) {
-  //  int[] shaftSelection = chooseRandomShafts(); // ex: [2,4]
-  //  liftPlan[i] = shaftSelection;
-  //}
+  
+  int[][] modifiedPattern = twoByTwoTwill;
+  
+  for (int i=0; i < liftPlan.length; i = i + twoByTwoTwill.length) {
+    modifiedPattern = devolution(modifiedPattern);
+    for (int j=0; j < modifiedPattern.length; j++) {
+      rowPosition++;
+      if (rowPosition < weftQuant) {
+        liftPlan[rowPosition] = modifiedPattern[j];
+      } else {
+        break;
+      }
+    }
+  }
+  
+  // stretch goal: more strutures that you can keyboard select
+  // for loop, within it there's a Perlin noise function that adjusts the lift plan
 
   int[][] drawdown = createDrawdown(liftPlan);
   printDraft(drawdown, liftPlan);
