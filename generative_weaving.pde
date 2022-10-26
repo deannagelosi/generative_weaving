@@ -14,6 +14,7 @@ import processing.svg.*;
 int rectSize = 15; // size of each cell in the output
 int weftQuant = 40;
 int warpQuant = 40;
+float pZoom = 200; // Perlin noise zoom level
 
 // 4-shaft straight draft
 int[] shaft1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
@@ -42,6 +43,7 @@ void setup() {
   size(705, 705); // 47 rects wide and high
   fileIndex = 1;
   series = (int)random(1000);
+  noiseSeed(16);
 }
 
 void draw() {
@@ -53,13 +55,12 @@ void draw() {
   }
   
   int rowPosition = twoByTwoTwill.length - 1;
-  println(rowPosition);
 
-  
   int[][] modifiedPattern = twoByTwoTwill;
   
   for (int i=0; i < liftPlan.length; i = i + twoByTwoTwill.length) {
-    modifiedPattern = devolution(modifiedPattern);
+    // modifiedPattern = devolution(modifiedPattern);  // telephone
+    modifiedPattern = devolution(twoByTwoTwill, i, rowPosition); // gradient
     for (int j=0; j < modifiedPattern.length; j++) {
       rowPosition++;
       if (rowPosition < weftQuant) {
@@ -79,19 +80,63 @@ void draw() {
   noLoop();
 }
 
-int[][] devolution(int[][] weaveSegment) {
+int[][] devolution(int[][] weaveSegment, int currentLoop, int rowPosition) {
+  int numChanges = currentLoop + 1;
   //int[][] modifiedWeaveSegment;
+
+  // // choose row
+  int px = 0; // left-most point on the rectangle
+  int py = rowPosition * rectSize; 
+  int selectedRow = perlinChoose(weaveSegment.length, px, py);
+  println("selectedRow: ", selectedRow);
+
+  // // select shaft
+  px = 0;
+  py = (rowPosition + selectedRow) * rectSize;
+  int selectedShaft = perlinChoose(weaveSegment[selectedRow].length, px, py);
+  println("selectedShaft: ", selectedShaft);
   
   // takes in a segment of the lift plan
   // modifies it using Perlin noise
   // returns the next segment of the lift plan
-  
+
+  // Perlin noise field selects which row and shaft
+  // in each loop, remove a selected shaft for a specific row
+  // increase the number of shafts removed with each loop
+  // if about to delete the last shaft in a row, change to another row
+
+
+  // for each loop, sample the Perlin noise field at the x, y coords at row 1, col 1 for that section
+  // to select a row, map the value onto a scale of 0 through pattern.length, rounding down
+  // go to pattern[row], returns an array of shafts: [shaft1, shaft4]
+  // sample noise at the beginning of the selected row
+  // to select a shaft, map the value onto a scale of 0 through pattern[row].length, rounding down
+  // remove the shaft at specified position pattern[row][shaftPosition]
+
+  // do above for the number of changes (offset the Perlin noise samples for each instance)
+
   // note: doesn't have to return the same number of rows
-  
+
+
   return weaveSegment; // to do: change this to the modified return
 }
 
+int perlinChoose(int numItems, int px, int py) {
+  float trim = 0.3;
 
+  float pNoise = noise(px/pZoom, py/pZoom); //0..1
+
+  // perlin is never fully 0 or 1, so trim to stretch the middle
+  if (pNoise < trim) {
+    pNoise = trim + 0.01;
+  } else if (pNoise > (1 - trim)) {
+    pNoise = 1 - trim - 0.01;
+  }
+  // println("pNoise", pNoise);
+  int selected = floor(map(pNoise, trim, (1-trim), 0, numItems));
+
+  return selected;
+}
 
 int[] chooseRandomShafts() {
   // create array defining which random shafts to lift
