@@ -82,19 +82,38 @@ void draw() {
 
 int[][] devolution(int[][] weaveSegment, int currentLoop, int rowPosition) {
   int numChanges = currentLoop + 1;
-  //int[][] modifiedWeaveSegment;
 
   // // choose row
   int px = 0; // left-most point on the rectangle
   int py = rowPosition * rectSize; 
   int selectedRow = perlinChoose(weaveSegment.length, px, py);
   println("selectedRow: ", selectedRow);
+  // to do: if the chosen row has only one shaft, pick another row
 
   // // select shaft
   px = 0;
   py = (rowPosition + selectedRow) * rectSize;
   int selectedShaft = perlinChoose(weaveSegment[selectedRow].length, px, py);
   println("selectedShaft: ", selectedShaft);
+
+
+
+
+  // int[][] modifiedWeaveSegment = new int[0][0];
+  // for (int i = 0; i < weaveSegment.length; i++) {
+  //   modifiedWeaveSegment = 
+  //   addElement()
+  // }
+
+
+  int[] modifiedRow = deleteElement(weaveSegment[selectedRow], selectedShaft);
+
+  if (modifiedRow.length == 0) {
+    // oops! deleted all the shafts
+    weaveSegment = delete2DElement(weaveSegment, selectedRow);
+  } else {
+    weaveSegment[selectedRow] = modifiedRow;
+  }
   
   // takes in a segment of the lift plan
   // modifies it using Perlin noise
@@ -122,6 +141,8 @@ int[][] devolution(int[][] weaveSegment, int currentLoop, int rowPosition) {
 }
 
 int perlinChoose(int numItems, int px, int py) {
+  // use xy coords to select an item deterministically
+
   float trim = 0.3;
 
   float pNoise = noise(px/pZoom, py/pZoom); //0..1
@@ -287,4 +308,46 @@ boolean arrayContains(int[] array, int check) {
 
 boolean randomBool() {
   return random(0, 1) <= 0.5;
+}
+
+int[] deleteElement(int[] array, int skipIndex) {
+  // remove item at index position
+  int[] modifiedArray = new int[array.length - 1];
+  int j = 0;
+  for (int i = 0; i < array.length; i++) {
+    if (i == skipIndex) {
+      // skip
+    } else {
+      modifiedArray[j] = array[i];
+      j++;
+    }
+  }
+
+  return modifiedArray;
+}
+
+int[][] delete2DElement(int[][] array, int skipIndex) {
+  // remove item at index position
+  int[][] modifiedArray = new int[array.length - 1][0];
+  int j = 0;
+  for (int i = 0; i < array.length; i++) {
+    if (i == skipIndex) {
+      // skip
+    } else {
+      modifiedArray[j] = array[i];
+      j++;
+    }
+  }
+
+  return modifiedArray;
+}
+
+int[] addElement(int[] array, int element) {
+  int[] modifiedArray = new int[array.length + 1];
+  for (int i = 0; i < array.length; i++) {
+    modifiedArray[i] = array[i];
+  }
+  modifiedArray[array.length] = element;
+
+  return modifiedArray;
 }
