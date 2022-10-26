@@ -1,14 +1,9 @@
 import processing.svg.*;
 
 // to dos
-// learn how to do Processing in VS Code
-
-// start from a known structure (satin, twill) for X rows
-// apply perlin noise to slightly alter the structure for X rows
-// repeat on previous rows, continues to evolve (i.e. game of telephone)
-// ends with a different looking but similar struture to first X rows
-// predefined total number of rows (weftQuant)
-
+// pan and zoom on Perlin noise
+// switch different starting swatches
+// increase the number of shafts removed with each loop
 
 // Declare global variables
 int rectSize = 15; // size of each cell in the output
@@ -53,7 +48,7 @@ void draw() {
   for (int i=0; i < twoByTwoTwill.length; i++) {
     liftPlan[i] = twoByTwoTwill[i];
   }
-  
+
   int rowPosition = twoByTwoTwill.length - 1;
 
   int[][] modifiedPattern = twoByTwoTwill;
@@ -71,9 +66,6 @@ void draw() {
     }
   }
   
-  // stretch goal: more strutures that you can keyboard select
-  // for loop, within it there's a Perlin noise function that adjusts the lift plan
-
   int[][] drawdown = createDrawdown(liftPlan);
   printDraft(drawdown, liftPlan);
 
@@ -81,63 +73,39 @@ void draw() {
 }
 
 int[][] devolution(int[][] weaveSegment, int currentLoop, int rowPosition) {
-  int numChanges = currentLoop + 1;
+  // int numChanges = currentLoop + 1;
 
-  // // choose row
+  // choose row
   int px = 0; // left-most point on the rectangle
   int py = rowPosition * rectSize; 
   int selectedRow = perlinChoose(weaveSegment.length, px, py);
-  println("selectedRow: ", selectedRow);
+  // println("selectedRow: ", selectedRow);
   // to do: if the chosen row has only one shaft, pick another row
 
-  // // select shaft
+  // select shaft
   px = 0;
   py = (rowPosition + selectedRow) * rectSize;
   int selectedShaft = perlinChoose(weaveSegment[selectedRow].length, px, py);
-  println("selectedShaft: ", selectedShaft);
+  // println("selectedShaft: ", selectedShaft);
 
-
-
-
-  // int[][] modifiedWeaveSegment = new int[0][0];
-  // for (int i = 0; i < weaveSegment.length; i++) {
-  //   modifiedWeaveSegment = 
-  //   addElement()
-  // }
-
-
-  int[] modifiedRow = deleteElement(weaveSegment[selectedRow], selectedShaft);
-
-  if (modifiedRow.length == 0) {
-    // oops! deleted all the shafts
-    weaveSegment = delete2DElement(weaveSegment, selectedRow);
-  } else {
-    weaveSegment[selectedRow] = modifiedRow;
+  // update weave with change
+  // 1. copy weaveSegment into modWeaveSegment
+  int[][] modWeaveSegment = new int[weaveSegment.length][0];
+  for (int i=0; i < weaveSegment.length; i++) {
+    modWeaveSegment[i] = weaveSegment[i];
   }
-  
-  // takes in a segment of the lift plan
-  // modifies it using Perlin noise
-  // returns the next segment of the lift plan
 
-  // Perlin noise field selects which row and shaft
-  // in each loop, remove a selected shaft for a specific row
-  // increase the number of shafts removed with each loop
-  // if about to delete the last shaft in a row, change to another row
+  // 2. make the change to the row/shaft
+  int[] modRow = deleteElement(modWeaveSegment[selectedRow], selectedShaft);
 
+  if (modRow.length == 0) {
+    // oops! no more shafts. remove row
+    modWeaveSegment = delete2DElement(modWeaveSegment, selectedRow);
+  } else {
+    modWeaveSegment[selectedRow] = modRow;
+  }
 
-  // for each loop, sample the Perlin noise field at the x, y coords at row 1, col 1 for that section
-  // to select a row, map the value onto a scale of 0 through pattern.length, rounding down
-  // go to pattern[row], returns an array of shafts: [shaft1, shaft4]
-  // sample noise at the beginning of the selected row
-  // to select a shaft, map the value onto a scale of 0 through pattern[row].length, rounding down
-  // remove the shaft at specified position pattern[row][shaftPosition]
-
-  // do above for the number of changes (offset the Perlin noise samples for each instance)
-
-  // note: doesn't have to return the same number of rows
-
-
-  return weaveSegment; // to do: change this to the modified return
+  return modWeaveSegment; 
 }
 
 int perlinChoose(int numItems, int px, int py) {
@@ -153,7 +121,6 @@ int perlinChoose(int numItems, int px, int py) {
   } else if (pNoise > (1 - trim)) {
     pNoise = 1 - trim - 0.01;
   }
-  // println("pNoise", pNoise);
   int selected = floor(map(pNoise, trim, (1-trim), 0, numItems));
 
   return selected;
