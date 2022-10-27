@@ -32,6 +32,9 @@ int[][] twoByTwoTwill = {
   {1, 2}
 };
 
+int[][] liftPlan;
+int[][] drawdown;
+
 // overrides filename until saved, series # randomly selected
 String filename;
 int series;
@@ -45,11 +48,10 @@ void setup() {
 }
 
 void draw() {
-  background(100); // dark grey
   rowFrequency = new int[6];
+  liftPlan = new int[weftQuant][0];
 
-  // create liftplan with starter pattern
-  int[][] liftPlan = new int[weftQuant][0];
+  // fill new liftplan with starter pattern
   for (int i=0; i < twoByTwoTwill.length; i++) {
     liftPlan[i] = twoByTwoTwill[i];
   }
@@ -73,8 +75,8 @@ void draw() {
     segmentCounter++;
   }
   
-  int[][] drawdown = createDrawdown(liftPlan);
-  printDraft(drawdown, liftPlan);
+  drawdown = createDrawdown(liftPlan);
+  printDraft(liftPlan, drawdown);
 
   println(rowFrequency);
 
@@ -181,12 +183,9 @@ int[][] createDrawdown(int[][] liftPlan) {
   return drawdown;
 }
 
-void printDraft(int[][] drawdown, int[][] liftPlan) {
+void printDraft(int[][] liftPlan, int[][] drawdown) {
   // visual output for draft
-
-  filename = "drawdowns/drawdown-" + series + "-" + fileIndex + ".svg";
-
-  beginRecord(SVG, filename);
+  background(100); // dark grey
 
   int padding = rectSize;
   int liftPlanWidth = numShafts * rectSize;
@@ -265,18 +264,23 @@ void printDraft(int[][] drawdown, int[][] liftPlan) {
       rect(pixelX, pixelY, rectSize, rectSize);
     }
   }
-
-  endRecord();
 }
 
 // keyboard commands
-void mousePressed() {
-  loop();
-}
+// void mousePressed() {
+//   loop();
+// }
 
 void keyPressed() {
   if (key == 's') {
+    filename = "drawdowns/drawdown-" + series + "-" + fileIndex + ".svg";
+
+    beginRecord(SVG, filename);
+    printDraft(liftPlan, drawdown);
+    endRecord();
+
     fileIndex++;
+
   } else if (key == CODED) {
     // Zoom and Pan the Perlin Field
     if (keyCode == UP) {
