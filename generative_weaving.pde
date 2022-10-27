@@ -9,7 +9,10 @@ import processing.svg.*;
 int rectSize = 15; // size of each cell in the output
 int weftQuant = 40;
 int warpQuant = 40;
-float pZoom = 200; // Perlin noise zoom level
+int pZoom = 100; // Perlin noise zoom level
+int pan = 0;
+
+int[] rowFrequency;
 
 // 4-shaft straight draft
 int[] shaft1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
@@ -43,19 +46,22 @@ void setup() {
 
 void draw() {
   background(100); // dark grey
-    
+  rowFrequency = new int[6];
+
+  // create liftplan with starter pattern
   int[][] liftPlan = new int[weftQuant][0];
   for (int i=0; i < twoByTwoTwill.length; i++) {
     liftPlan[i] = twoByTwoTwill[i];
   }
 
   int rowPosition = twoByTwoTwill.length - 1;
-
-  int[][] modifiedPattern = twoByTwoTwill;
+  int segmentCounter = 0;
+  // int[][] modifiedPattern = twoByTwoTwill;
   
   for (int i=0; i < liftPlan.length; i = i + twoByTwoTwill.length) {
-    // modifiedPattern = devolution(modifiedPattern);  // telephone
-    modifiedPattern = devolution(twoByTwoTwill, i, rowPosition); // gradient
+    // modifiedPattern = gradient(modifiedPattern);  // telephone
+    int[][] modifiedPattern = gradient(twoByTwoTwill, segmentCounter, rowPosition); // gradient
+    // Add new pattern to the liftPlan
     for (int j=0; j < modifiedPattern.length; j++) {
       rowPosition++;
       if (rowPosition < weftQuant) {
@@ -64,55 +70,69 @@ void draw() {
         break;
       }
     }
+    segmentCounter++;
   }
   
   int[][] drawdown = createDrawdown(liftPlan);
   printDraft(drawdown, liftPlan);
 
+  println(rowFrequency);
+
   noLoop();
 }
 
-int[][] devolution(int[][] weaveSegment, int currentLoop, int rowPosition) {
-  // int numChanges = currentLoop + 1;
+// int[][] devolution(int[][] weaveSegment, int currentLoop, int rowPosition) {}
 
-  // choose row
-  int px = 0; // left-most point on the rectangle
-  int py = rowPosition * rectSize; 
-  int selectedRow = perlinChoose(weaveSegment.length, px, py);
-  // println("selectedRow: ", selectedRow);
-  // to do: if the chosen row has only one shaft, pick another row
-
-  // select shaft
-  px = 0;
-  py = (rowPosition + selectedRow) * rectSize;
-  int selectedShaft = perlinChoose(weaveSegment[selectedRow].length, px, py);
-  // println("selectedShaft: ", selectedShaft);
-
-  // update weave with change
-  // 1. copy weaveSegment into modWeaveSegment
+int[][] gradient(int[][] weaveSegment, int currentLoop, int rowPosition) {
+  // to do: track selected row frequency over time
+  int numChanges = currentLoop + 1;
+  
+  // copy weaveSegment into modWeaveSegment
   int[][] modWeaveSegment = new int[weaveSegment.length][0];
-  for (int i=0; i < weaveSegment.length; i++) {
-    modWeaveSegment[i] = weaveSegment[i];
+  for (int j = 0; j < weaveSegment.length; j++) {
+    modWeaveSegment[j] = weaveSegment[j];
   }
 
-  // 2. make the change to the row/shaft
-  int[] modRow = deleteElement(modWeaveSegment[selectedRow], selectedShaft);
+  int px = 0; // left-most point on the rectangle
+  for (int i = 0; i < numChanges; i++) {
+    if (modWeaveSegment.length > 1) {
+      // choose row
+      int py = rowPosition * rectSize; 
+      int selectedRow = perlinChoose(modWeaveSegment.length, px, py);
+      rowFrequency[selectedRow]++;
 
-  if (modRow.length == 0) {
-    // oops! no more shafts. remove row
-    modWeaveSegment = delete2DElement(modWeaveSegment, selectedRow);
-  } else {
-    modWeaveSegment[selectedRow] = modRow;
+      // select shaft
+      py = (rowPosition + selectedRow) * rectSize;
+      int selectedShaft = perlinChoose(modWeaveSegment[selectedRow].length, px, py);
+
+      // update weave
+      if (modWeaveSegment[selectedRow].length <= 1) {
+        // Deleting the shaft will leave none. Choose a new shaft instead.
+        int newShaft = perlinChoose(numShafts, px, py) + 1; // 0..3
+        int[] modRow = {newShaft};
+        modWeaveSegment[selectedRow] = modRow; // ex: [3]
+
+        // oops! only one shaft left, remove row
+        // modWeaveSegment = delete2DElement(modWeaveSegment, selectedRow);
+      } else {
+        int[] modRow = deleteElement(modWeaveSegment[selectedRow], selectedShaft); 
+        modWeaveSegment[selectedRow] = modRow;
+      }
+
+      // increase y by col width (rectSize)
+      px = px + rectSize;
+    } 
   }
-
+  
   return modWeaveSegment; 
 }
 
 int perlinChoose(int numItems, int px, int py) {
   // use xy coords to select an item deterministically
+  // if numItems = 4, will return a num between 0 and 3
+  px = px + pan; // add offest when panning
 
   float trim = 0.3;
-
   float pNoise = noise(px/pZoom, py/pZoom); //0..1
 
   // perlin is never fully 0 or 1, so trim to stretch the middle
@@ -257,6 +277,25 @@ void mousePressed() {
 void keyPressed() {
   if (key == 's') {
     fileIndex++;
+  } else if (key == CODED) {
+    // Zoom and Pan the Perlin Field
+    if (keyCode == UP) {
+      pZoom = pZoom + rectSize;
+      println("pZoom: ", pZoom);
+      loop();
+    } else if (keyCode == DOWN) {
+      pZoom = pZoom - rectSize;
+      println("pZoom: ", pZoom);
+      loop();
+    } else if (keyCode == LEFT) {
+      pan = pan - rectSize;
+      println("pan: ", pan);
+      loop();
+    }else if (keyCode == RIGHT) {
+      pan = pan + rectSize;
+      println("pan: ", pan);
+      loop();
+    }
   }
 }
 
