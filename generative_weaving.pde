@@ -5,18 +5,19 @@ import processing.svg.*;
 // increase the number of shafts removed with each loop
 
 // Declare global variables
-int rectSize = 15; // size of each cell in the output
-int weftQuant = 40;
-int warpQuant = 40;
-int pZoom = 100; // Perlin noise zoom level
-int pan = 0;
+int rectSize; 
+int weftQuant;
+int warpQuant;
+int pZoom; 
+int pan;
 
 int[] rowFrequency;
 
 int[][] threading;
 int numShafts;
 
-// weave pattern
+// weave patterns
+int[][] activePattern;
 int[][] twoByTwoTwill = {
   {2, 3}, 
   {3, 4}, 
@@ -25,6 +26,13 @@ int[][] twoByTwoTwill = {
   {2, 3}, 
   {1, 2}
 };
+int[][] warpFacingTwill = {
+  {1, 2, 3, 5, 6, 7},
+  {2, 3, 4, 6, 7, 8},
+  {1, 3, 4, 5, 7, 8},
+  {1, 2, 4, 5, 6, 8}
+};
+
 
 int[][] liftPlan;
 int[][] drawdown;
@@ -35,13 +43,19 @@ int series;
 int fileIndex;
 
 void setup() {
-  size(705, 705); // 47 rects wide and high
+  size(1400, 705); // 47 rects wide and high
   fileIndex = 1;
   series = (int)random(1000);
   noiseSeed(16);
+  pan = 0;
+  pZoom = 100; // Perlin noise zoom level
 
-  threading = createThreading(4, 40);
+  rectSize = 8; // size of each cell in the output
+  warpQuant = 144;
+  weftQuant = 40;
+  threading = createThreading(8, 144);
   numShafts = threading.length;
+  activePattern = warpFacingTwill;
 }
 
 void draw() {
@@ -49,17 +63,17 @@ void draw() {
   liftPlan = new int[weftQuant][0];
 
   // fill new liftplan with starter pattern
-  for (int i=0; i < twoByTwoTwill.length; i++) {
-    liftPlan[i] = twoByTwoTwill[i];
+  for (int i=0; i < activePattern.length; i++) {
+    liftPlan[i] = activePattern[i];
   }
 
-  int rowPosition = twoByTwoTwill.length - 1;
+  int rowPosition = activePattern.length - 1;
   int segmentCounter = 0;
-  // int[][] modifiedPattern = twoByTwoTwill;
+  // int[][] modifiedPattern = activePattern;
   
-  for (int i=0; i < liftPlan.length; i = i + twoByTwoTwill.length) {
+  for (int i=0; i < liftPlan.length; i = i + activePattern.length) {
     // modifiedPattern = gradient(modifiedPattern);  // telephone
-    int[][] modifiedPattern = gradient(twoByTwoTwill, segmentCounter, rowPosition); // gradient
+    int[][] modifiedPattern = gradient(activePattern, segmentCounter, rowPosition); // gradient
     // Add new pattern to the liftPlan
     for (int j=0; j < modifiedPattern.length; j++) {
       rowPosition++;
@@ -212,8 +226,12 @@ void printDraft(int[][] liftPlan, int[][] drawdown) {
   int liftPlanWidth = numShafts * rectSize;
   int threadingHeight = numShafts * rectSize;
   
-  // print tie ups
-  int[][] tieUps = {{1}, {2}, {3}, {4}};
+  int[][] tieUps = new int[numShafts][0];
+  // tieUps = {{1}, {2}, {3}, ...}
+  for (int i = 0; i < numShafts; i++) {
+    int[] shaft = {i + 1};
+    tieUps[i] = shaft; 
+  }
   
   for (int row = 0; row < tieUps.length; row++) {
     for (int col = 0; col < numShafts; col++) {
