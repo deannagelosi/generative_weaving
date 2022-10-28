@@ -1,7 +1,6 @@
 import processing.svg.*;
 
 // to dos
-// pan and zoom on Perlin noise
 // switch different starting swatches
 // increase the number of shafts removed with each loop
 
@@ -14,13 +13,8 @@ int pan = 0;
 
 int[] rowFrequency;
 
-// 4-shaft straight draft
-int[] shaft1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
-int[] shaft2 = {2, 6, 10, 14, 18, 22, 26, 30, 34, 38};
-int[] shaft3 = {3, 7, 11, 15, 19, 23, 27, 31, 35, 39};
-int[] shaft4 = {4, 8, 12, 16, 20, 24, 28, 32, 36, 40};
-int[][] threading = {shaft1, shaft2, shaft3, shaft4};
-int numShafts = threading.length;
+int[][] threading;
+int numShafts;
 
 // weave pattern
 int[][] twoByTwoTwill = {
@@ -45,6 +39,9 @@ void setup() {
   fileIndex = 1;
   series = (int)random(1000);
   noiseSeed(16);
+
+  threading = createThreading(4, 40);
+  numShafts = threading.length;
 }
 
 void draw() {
@@ -78,7 +75,7 @@ void draw() {
   drawdown = createDrawdown(liftPlan);
   printDraft(liftPlan, drawdown);
 
-  println(rowFrequency);
+  // println(rowFrequency);
 
   noLoop();
 }
@@ -181,6 +178,30 @@ int[][] createDrawdown(int[][] liftPlan) {
   }
 
   return drawdown;
+}
+
+int[][] createThreading(int numShafts, int numWarps) {
+  // 4-shaft straight draft
+  // int[] shaft1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
+  // int[] shaft2 = {2, 6, 10, 14, 18, 22, 26, 30, 34, 38};
+  // int[] shaft3 = {3, 7, 11, 15, 19, 23, 27, 31, 35, 39};
+  // int[] shaft4 = {4, 8, 12, 16, 20, 24, 28, 32, 36, 40};
+  // int[][] threading = {shaft1, shaft2, shaft3, shaft4};
+  int[][] threading = new int[numShafts][0];
+  for (int i = 0; i < numShafts; i++) {
+    threading[i] = createShaft(numShafts, numWarps, i + 1);
+  }
+
+  return threading;
+}
+
+int[] createShaft(int numShafts, int numWarps, int whichShaft) {
+  int[] shaft = new int[numWarps / numShafts];
+  for (int i = 0; i < shaft.length; i++) {
+    shaft[i] = whichShaft + (numShafts * i);
+  }
+
+  return shaft;
 }
 
 void printDraft(int[][] liftPlan, int[][] drawdown) {
