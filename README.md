@@ -5,7 +5,7 @@
 This program generates weaving drafts as svg files based on defined parameters. It takes as input a known weaving pattern, e.g. twill or satin, and glitches the design with increasing frequency. The glitches are shaped by a Perlin noise field which produces deterministic results. Drafts can be modified by panning and zooming around the noise field.
 
 <figure>
-<img src="drawdowns/drawdown-64-2.svg" alt="generated weaving draft" style="width:100%">
+<img src="drawdowns/drawdown-readme.svg" alt="generated weaving draft" style="width:100%">
 <figcaption align = "center"><b>Example output of a generated weaving draft</b></figcaption>
 </figure>
 
