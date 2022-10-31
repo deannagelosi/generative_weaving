@@ -1,24 +1,34 @@
 import processing.svg.*;
 
 // to dos
-// switch different starting swatches
-// increase the number of shafts removed with each loop
+// merge into main
+// on screen recording of pan and zoom 
+// readme
+
+// move preloaded patterns into separate file (JSON?)
+// keyboard toggle different starting swatches
+
 
 // Declare global variables
-int rectSize; 
-int weftQuant;
-int warpQuant;
+String filename;
+int seed;
 int pZoom; 
 int pan;
 
-int[] rowFrequency;
-
-int[][] threading;
+int rectSize; 
+int weftQuant;
+int warpQuant;
 int numShafts;
+
+int[][] liftPlan;
+int[][] drawdown;
+int[][] threading;
+
+int[] rowFrequency;
 
 // weave patterns
 int[][] activePattern;
-int[][] twoByTwoTwill = {
+int[][] twoByTwoTwill = { // 4-shaft
   {2, 3}, 
   {3, 4}, 
   {1, 4}, 
@@ -26,27 +36,17 @@ int[][] twoByTwoTwill = {
   {2, 3}, 
   {1, 2}
 };
-int[][] warpFacingTwill = {
+int[][] warpFacingTwill = { // 8-shaft
   {1, 2, 3, 5, 6, 7},
   {2, 3, 4, 6, 7, 8},
   {1, 3, 4, 5, 7, 8},
   {1, 2, 4, 5, 6, 8}
 };
 
-
-int[][] liftPlan;
-int[][] drawdown;
-
-// overrides filename until saved, series # randomly selected
-String filename;
-int series;
-int fileIndex;
-
 void setup() {
   size(1400, 705); // 47 rects wide and high
-  fileIndex = 1;
-  series = (int)random(1000);
-  noiseSeed(16);
+  seed = 16;
+  noiseSeed(seed);
   pan = 0;
   pZoom = 100; // Perlin noise zoom level
 
@@ -305,20 +305,13 @@ void printDraft(int[][] liftPlan, int[][] drawdown) {
   }
 }
 
-// keyboard commands
-// void mousePressed() {
-//   loop();
-// }
-
 void keyPressed() {
   if (key == 's') {
-    filename = "drawdowns/drawdown-" + series + "-" + fileIndex + ".svg";
+    filename = "drawdowns/drawdown-s" + seed + "-p" + pan + "-z" + pZoom + ".svg";
 
     beginRecord(SVG, filename);
     printDraft(liftPlan, drawdown);
     endRecord();
-
-    fileIndex++;
 
   } else if (key == CODED) {
     // Zoom and Pan the Perlin Field
