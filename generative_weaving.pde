@@ -1,53 +1,148 @@
 import processing.svg.*;
 
-// UI changes
-// add threading and lift plan to print
-// convert 4 to 8-shafts
-
-// perlin noise influences which shafts are lifted
-// play with inverting rows (mirror or up/down flip)
-
-// glitching the final pattern (first, manually)
-
-// stretch: press 'g' for a new random glitch
-
 // Declare global variables
-int rectSize = 15; // size of each cell in the output
-int weftQuant = 40;
-int warpQuant = 40;
-
-// 4-shaft direct tie-up loom
-int[] shaft1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
-int[] shaft2 = {2, 6, 10, 14, 18, 22, 26, 30, 34, 38};
-int[] shaft3 = {3, 7, 11, 15, 19, 23, 27, 31, 35, 39};
-int[] shaft4 = {4, 8, 12, 16, 20, 24, 28, 32, 36, 40};
-int[][] threading = {shaft1, shaft2, shaft3, shaft4};
-int numShafts = threading.length;
-
-// overrides filename until saved, series # randomly selected
 String filename;
-int series;
-int fileIndex;
+int seed;
+int pZoom; 
+int pan;
+
+int rectSize; 
+int weftQuant;
+int warpQuant;
+int numShafts;
+
+int[][] liftPlan;
+int[][] drawdown;
+int[][] threading;
+
+int[] rowFrequency;
+
+// weave patterns
+int[][] activePattern;
+int[][] twoByTwoTwill = { // 4-shaft
+  {2, 3}, 
+  {3, 4}, 
+  {1, 4}, 
+  {3, 4}, 
+  {2, 3}, 
+  {1, 2}
+};
+int[][] warpFacingTwill = { // 8-shaft
+  {1, 2, 3, 5, 6, 7},
+  {2, 3, 4, 6, 7, 8},
+  {1, 3, 4, 5, 7, 8},
+  {1, 2, 4, 5, 6, 8}
+};
 
 void setup() {
-  size(705, 705); // 47 rects wide and high
-  fileIndex = 1;
-  series = (int)random(1000);
+  size(1400, 705); // 47 rects wide and high
+  seed = 16;
+  noiseSeed(seed);
+  pan = 0;
+  pZoom = 100; // Perlin noise zoom level
+
+  rectSize = 8; // size of each cell in the output
+  warpQuant = 144;
+  weftQuant = 40;
+  threading = createThreading(8, 144);
+  numShafts = threading.length;
+  activePattern = warpFacingTwill;
 }
 
 void draw() {
-  background(100); // dark grey
+  rowFrequency = new int[6];
+  liftPlan = new int[weftQuant][0];
 
-  int[][] liftPlan = new int[weftQuant][0];
-  for (int i=0; i < weftQuant; i++) {
-    int[] shaftSelection = chooseRandomShafts(); // ex: [2,4]
-    liftPlan[i] = shaftSelection;
+  // fill new liftplan with starter pattern
+  for (int i=0; i < activePattern.length; i++) {
+    liftPlan[i] = activePattern[i];
   }
 
-  int[][] drawdown = createDrawdown(liftPlan);
-  printDraft(drawdown, liftPlan);
+  int rowPosition = activePattern.length - 1;
+  int segmentCounter = 0;
+  
+  for (int i=0; i < liftPlan.length; i = i + activePattern.length) {
+    int[][] modifiedPattern = gradient(activePattern, segmentCounter, rowPosition);
+    // Add new pattern to the liftPlan
+    for (int j=0; j < modifiedPattern.length; j++) {
+      rowPosition++;
+      if (rowPosition < weftQuant) {
+        liftPlan[rowPosition] = modifiedPattern[j];
+      } else {
+        break;
+      }
+    }
+    segmentCounter++;
+  }
+  
+  drawdown = createDrawdown(liftPlan);
+  printDraft(liftPlan, drawdown);
+
+  // println(rowFrequency);
 
   noLoop();
+}
+
+int[][] gradient(int[][] weaveSegment, int currentLoop, int rowPosition) {
+  int numChanges = currentLoop + 1;
+  
+  // copy weaveSegment into modWeaveSegment
+  int[][] modWeaveSegment = new int[weaveSegment.length][0];
+  for (int j = 0; j < weaveSegment.length; j++) {
+    modWeaveSegment[j] = weaveSegment[j];
+  }
+
+  int px = 0; // left-most point on the rectangle
+  for (int i = 0; i < numChanges; i++) {
+    if (modWeaveSegment.length > 1) {
+      // choose row
+      int py = rowPosition * rectSize; 
+      int selectedRow = perlinChoose(modWeaveSegment.length, px, py);
+      rowFrequency[selectedRow]++;
+
+      // select shaft
+      py = (rowPosition + selectedRow) * rectSize;
+      int selectedShaft = perlinChoose(modWeaveSegment[selectedRow].length, px, py);
+
+      // update weave
+      if (modWeaveSegment[selectedRow].length <= 1) {
+        // Deleting the shaft will leave none. Choose a new shaft instead.
+        int newShaft = perlinChoose(numShafts, px, py) + 1; // 0..3
+        int[] modRow = {newShaft};
+        modWeaveSegment[selectedRow] = modRow; // ex: [3]
+
+        // oops! only one shaft left, remove row
+        // modWeaveSegment = delete2DElement(modWeaveSegment, selectedRow);
+      } else {
+        int[] modRow = deleteElement(modWeaveSegment[selectedRow], selectedShaft); 
+        modWeaveSegment[selectedRow] = modRow;
+      }
+
+      // increase y by col width (rectSize)
+      px = px + rectSize;
+    } 
+  }
+  
+  return modWeaveSegment; 
+}
+
+int perlinChoose(int numItems, int px, int py) {
+  // use xy coords to select an item deterministically
+  // if numItems = 4, will return a num between 0 and 3
+  px = px + pan; // add offest when panning
+
+  float trim = 0.3;
+  float pNoise = noise(px/pZoom, py/pZoom); //0..1
+
+  // perlin is never fully 0 or 1, so trim to stretch the middle
+  if (pNoise < trim) {
+    pNoise = trim + 0.01;
+  } else if (pNoise > (1 - trim)) {
+    pNoise = 1 - trim - 0.01;
+  }
+  int selected = floor(map(pNoise, trim, (1-trim), 0, numItems));
+
+  return selected;
 }
 
 int[] chooseRandomShafts() {
@@ -85,19 +180,44 @@ int[][] createDrawdown(int[][] liftPlan) {
   return drawdown;
 }
 
-void printDraft(int[][] drawdown, int[][] liftPlan) {
+int[][] createThreading(int numShafts, int numWarps) {
+  // 4-shaft straight draft
+  // int[] shaft1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
+  // int[] shaft2 = {2, 6, 10, 14, 18, 22, 26, 30, 34, 38};
+  // int[] shaft3 = {3, 7, 11, 15, 19, 23, 27, 31, 35, 39};
+  // int[] shaft4 = {4, 8, 12, 16, 20, 24, 28, 32, 36, 40};
+  // int[][] threading = {shaft1, shaft2, shaft3, shaft4};
+  int[][] threading = new int[numShafts][0];
+  for (int i = 0; i < numShafts; i++) {
+    threading[i] = createShaft(numShafts, numWarps, i + 1);
+  }
+
+  return threading;
+}
+
+int[] createShaft(int numShafts, int numWarps, int whichShaft) {
+  int[] shaft = new int[numWarps / numShafts];
+  for (int i = 0; i < shaft.length; i++) {
+    shaft[i] = whichShaft + (numShafts * i);
+  }
+
+  return shaft;
+}
+
+void printDraft(int[][] liftPlan, int[][] drawdown) {
   // visual output for draft
-
-  filename = "drawdowns/drawdown-" + series + "-" + fileIndex + ".svg";
-
-  beginRecord(SVG, filename);
+  background(100); // dark grey
 
   int padding = rectSize;
   int liftPlanWidth = numShafts * rectSize;
   int threadingHeight = numShafts * rectSize;
   
-  // print tie ups
-  int[][] tieUps = {{1}, {2}, {3}, {4}};
+  int[][] tieUps = new int[numShafts][0];
+  // tieUps = {{1}, {2}, {3}, ...}
+  for (int i = 0; i < numShafts; i++) {
+    int[] shaft = {i + 1};
+    tieUps[i] = shaft; 
+  }
   
   for (int row = 0; row < tieUps.length; row++) {
     for (int col = 0; col < numShafts; col++) {
@@ -169,18 +289,35 @@ void printDraft(int[][] drawdown, int[][] liftPlan) {
       rect(pixelX, pixelY, rectSize, rectSize);
     }
   }
-
-  endRecord();
-}
-
-// keyboard commands
-void mousePressed() {
-  loop();
 }
 
 void keyPressed() {
   if (key == 's') {
-    fileIndex++;
+    filename = "drawdowns/drawdown-s" + seed + "-p" + pan + "-z" + pZoom + ".svg";
+
+    beginRecord(SVG, filename);
+    printDraft(liftPlan, drawdown);
+    endRecord();
+
+  } else if (key == CODED) {
+    // Zoom and Pan the Perlin Field
+    if (keyCode == UP) {
+      pZoom = pZoom + rectSize;
+      println("pZoom: ", pZoom);
+      loop();
+    } else if (keyCode == DOWN) {
+      pZoom = pZoom - rectSize;
+      println("pZoom: ", pZoom);
+      loop();
+    } else if (keyCode == LEFT) {
+      pan = pan - rectSize;
+      println("pan: ", pan);
+      loop();
+    }else if (keyCode == RIGHT) {
+      pan = pan + rectSize;
+      println("pan: ", pan);
+      loop();
+    }
   }
 }
 
@@ -199,4 +336,46 @@ boolean arrayContains(int[] array, int check) {
 
 boolean randomBool() {
   return random(0, 1) <= 0.5;
+}
+
+int[] deleteElement(int[] array, int skipIndex) {
+  // remove item at index position
+  int[] modifiedArray = new int[array.length - 1];
+  int j = 0;
+  for (int i = 0; i < array.length; i++) {
+    if (i == skipIndex) {
+      // skip
+    } else {
+      modifiedArray[j] = array[i];
+      j++;
+    }
+  }
+
+  return modifiedArray;
+}
+
+int[][] delete2DElement(int[][] array, int skipIndex) {
+  // remove item at index position
+  int[][] modifiedArray = new int[array.length - 1][0];
+  int j = 0;
+  for (int i = 0; i < array.length; i++) {
+    if (i == skipIndex) {
+      // skip
+    } else {
+      modifiedArray[j] = array[i];
+      j++;
+    }
+  }
+
+  return modifiedArray;
+}
+
+int[] addElement(int[] array, int element) {
+  int[] modifiedArray = new int[array.length + 1];
+  for (int i = 0; i < array.length; i++) {
+    modifiedArray[i] = array[i];
+  }
+  modifiedArray[array.length] = element;
+
+  return modifiedArray;
 }
