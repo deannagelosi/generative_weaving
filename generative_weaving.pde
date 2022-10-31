@@ -1,14 +1,5 @@
 import processing.svg.*;
 
-// to dos
-// merge into main
-// on screen recording of pan and zoom 
-// readme
-
-// move preloaded patterns into separate file (JSON?)
-// keyboard toggle different starting swatches
-
-
 // Declare global variables
 String filename;
 int seed;
@@ -69,11 +60,9 @@ void draw() {
 
   int rowPosition = activePattern.length - 1;
   int segmentCounter = 0;
-  // int[][] modifiedPattern = activePattern;
   
   for (int i=0; i < liftPlan.length; i = i + activePattern.length) {
-    // modifiedPattern = gradient(modifiedPattern);  // telephone
-    int[][] modifiedPattern = gradient(activePattern, segmentCounter, rowPosition); // gradient
+    int[][] modifiedPattern = gradient(activePattern, segmentCounter, rowPosition);
     // Add new pattern to the liftPlan
     for (int j=0; j < modifiedPattern.length; j++) {
       rowPosition++;
@@ -94,10 +83,7 @@ void draw() {
   noLoop();
 }
 
-// int[][] devolution(int[][] weaveSegment, int currentLoop, int rowPosition) {}
-
 int[][] gradient(int[][] weaveSegment, int currentLoop, int rowPosition) {
-  // to do: track selected row frequency over time
   int numChanges = currentLoop + 1;
   
   // copy weaveSegment into modWeaveSegment
