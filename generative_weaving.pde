@@ -11,11 +11,11 @@ int weftQuant;
 int warpQuant;
 int numShafts;
 
-int[][] liftPlan;
+int[] rowFrequency;
+
+LiftPlan liftPlan;
 int[][] drawdown;
 int[][] threading;
-
-int[] rowFrequency;
 
 // weave patterns
 int[][] activePattern;
@@ -51,23 +51,23 @@ void setup() {
 
 void draw() {
   rowFrequency = new int[6];
-  liftPlan = new int[weftQuant][0];
+  liftPlan = new LiftPlan(weftQuant);
 
   // fill new liftplan with starter pattern
   for (int i=0; i < activePattern.length; i++) {
-    liftPlan[i] = activePattern[i];
+    liftPlan.setRow(i, activePattern[i]);
   }
 
   int rowPosition = activePattern.length - 1;
   int segmentCounter = 0;
   
-  for (int i=0; i < liftPlan.length; i = i + activePattern.length) {
+  for (int i=0; i < liftPlan.rows.length; i = i + activePattern.length) {
     int[][] modifiedPattern = gradient(activePattern, segmentCounter, rowPosition);
     // Add new pattern to the liftPlan
     for (int j=0; j < modifiedPattern.length; j++) {
       rowPosition++;
       if (rowPosition < weftQuant) {
-        liftPlan[rowPosition] = modifiedPattern[j];
+        liftPlan.setRow(rowPosition, modifiedPattern[j]);
       } else {
         break;
       }
@@ -162,16 +162,22 @@ int[] chooseRandomShafts() {
   return shaftSelection;
 }
 
-int[][] createDrawdown(int[][] liftPlan) {
+int[][] createDrawdown(LiftPlan liftPlan) {
   // uses threading and lift plan to make drawdown
 
-  int[][] drawdown = new int[liftPlan.length][0];
+  int[][] drawdown = new int[liftPlan.rows.length][0];
 
-  for (int i = 0; i < liftPlan.length; i++) {
+  for (int i = 0; i < liftPlan.rows.length; i++) {
 
     int[] drawdownRow = new int[0];
-    for (int shaft : liftPlan[i]) {
+    // for (int shaft : liftPlan.rows[i]) {
+    //   drawdownRow = concat(drawdownRow, threading[shaft - 1]);
+    // }
+
+    for (int j = 0; j < liftPlan.rows[i].getLength(); j++) {
       // building drawdown by accessing warps lifted
+      // int shaft = liftPlan.rows[i][j];
+      int shaft = liftPlan.getShaft(i, j);
       drawdownRow = concat(drawdownRow, threading[shaft - 1]);
     }
     drawdown[i] = drawdownRow;
@@ -204,7 +210,7 @@ int[] createShaft(int numShafts, int numWarps, int whichShaft) {
   return shaft;
 }
 
-void printDraft(int[][] liftPlan, int[][] drawdown) {
+void printDraft(LiftPlan liftPlan, int[][] drawdown) {
   // visual output for draft
   background(100); // dark grey
 
@@ -237,10 +243,10 @@ void printDraft(int[][] liftPlan, int[][] drawdown) {
   }
 
   // print lift plan
-  for (int row = 0; row < liftPlan.length; row++) {
+  for (int row = 0; row < liftPlan.rows.length; row++) {
     for (int col = 0; col < numShafts; col++) {
 
-      if (arrayContains(liftPlan[row], col + 1)) {
+      if (rowContains(liftPlan.rows[row], col + 1)) {
         fill(0); // fill rectangle with black
       } else {
         fill(255); // no fill
@@ -334,6 +340,18 @@ boolean arrayContains(int[] array, int check) {
   return false;
 }
 
+boolean rowContains(LiftRow row, int shaft) {
+  // checks if the lift row contains the shaft
+
+  for (int i = 0; i < row.liftedShafts.length; i++) {
+    if (row.liftedShafts[i] == shaft) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 boolean randomBool() {
   return random(0, 1) <= 0.5;
 }
@@ -378,4 +396,53 @@ int[] addElement(int[] array, int element) {
   modifiedArray[array.length] = element;
 
   return modifiedArray;
+}
+
+// class Point {
+//   float x, y;
+//   // constructor
+//   Point(float x_, float y_) {
+//     x = x_;
+//     y = y_;
+//   }
+// }
+
+class LiftRow {
+  // [2, 3]
+  // boolean glitched or not
+  int[] liftedShafts;
+  boolean glitched;
+  // constructor
+  LiftRow(int[] liftedShafts_) {
+    liftedShafts = liftedShafts_;
+    glitched = false;
+  }
+
+  int getLength() {
+    return liftedShafts.length;
+  }
+
+  int getShaft(int position) {
+    return liftedShafts[position];
+  }
+
+}
+
+class LiftPlan {
+  // array of liftRows
+  LiftRow[] rows;
+  // constructor
+  LiftPlan(int weftQuant) {
+    // liftPlan = new int[weftQuant][0];
+    rows = new LiftRow[weftQuant];
+  }
+
+  void setRow(int i, int[] whichShafts) {
+    LiftRow newRow = new LiftRow(whichShafts);
+    rows[i] = newRow;
+  }
+
+  int getShaft(int whichRow, int whichShaft) {
+    return rows[whichRow].getShaft(whichShaft);
+  }
 }
