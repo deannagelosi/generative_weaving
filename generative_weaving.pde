@@ -19,20 +19,20 @@ RowData[] tieUps;
 
 // weave patterns
 int[][] activePattern;
-int[][] twoByTwoTwill = { // 4-shaft
-  {2, 3}, 
-  {3, 4}, 
-  {1, 4}, 
-  {3, 4}, 
-  {2, 3}, 
-  {1, 2}
-};
-int[][] warpFacingTwill = { // 8-shaft
-  {1, 2, 3, 5, 6, 7},
-  {2, 3, 4, 6, 7, 8},
-  {1, 3, 4, 5, 7, 8},
-  {1, 2, 4, 5, 6, 8}
-};
+// int[][] twoByTwoTwill = { // 4-shaft
+//   {2, 3}, 
+//   {3, 4}, 
+//   {1, 4}, 
+//   {3, 4}, 
+//   {2, 3}, 
+//   {1, 2}
+// };
+// int[][] warpFacingTwill = { // 8-shaft
+//   {1, 2, 3, 5, 6, 7},
+//   {2, 3, 4, 6, 7, 8},
+//   {1, 3, 4, 5, 7, 8},
+//   {1, 2, 4, 5, 6, 8}
+// };
 
 void setup() {
   size(1400, 705); // 47 rects wide and high
@@ -47,7 +47,13 @@ void setup() {
   numShafts = 8;
   threading = createThreading(numShafts, warpQuant);
   tieUps = createTieUps(numShafts);
-  activePattern = warpFacingTwill;
+  
+  Pattern[] patterns = importJSONPatterns("patterns.json"); 
+  println(patterns[0].name + " - " + patterns[0].numShafts);
+  // println(patterns[0].shafts[0]);
+
+  // activePattern = warpFacingTwill;
+  activePattern = patterns[1].shafts;
 }
 
 void draw() {
@@ -311,6 +317,39 @@ void keyPressed() {
 }
 
 //==== helper functions ====//
+Pattern[] importJSONPatterns(String filename) {
+
+  JSONArray patternsJSON = loadJSONArray(filename);
+
+  Pattern[] patterns = new Pattern[patternsJSON.size()];
+  for (int i = 0; i < patternsJSON.size(); i++) {
+
+    // load pattern
+    JSONObject patternJSON = patternsJSON.getJSONObject(i); 
+    String name = patternJSON.getString("name");
+    int numShafts = patternJSON.getInt("numShafts");
+
+    // parse the shafts 2d int array
+    JSONArray shaftsJSON = patternJSON.getJSONArray("shafts");
+    int[][] shafts = new int[shaftsJSON.size()][0];
+    for (int j = 0; j < shaftsJSON.size(); j++) {
+
+      JSONArray shaftJSON = shaftsJSON.getJSONArray(j);
+      int[] shaft = new int[shaftJSON.size()];
+      for (int k = 0; k < shaftJSON.size(); k++) {
+        shaft[k] = shaftJSON.getInt(k);
+      }
+
+      shafts[j] = shaft;
+    }
+
+    Pattern pattern = new Pattern(name, numShafts, shafts);
+    patterns[i] = pattern;
+  }
+
+  return patterns;
+}
+
 boolean arrayContains(int[] array, int check) {
   // checks if the array contains an integer
   for (int item : array) {
@@ -358,5 +397,18 @@ class RowData {
   RowData(int[] shafts_) {
     shafts = shafts_;
     glitched = false;
+  }
+}
+
+class Pattern {
+  String name;
+  int numShafts;
+  int[][] shafts;
+
+  // constructor
+  Pattern(String name_, int numShafts_, int[][] shafts_) {
+    name = name_;
+    numShafts = numShafts_;
+    shafts = shafts_;
   }
 }
