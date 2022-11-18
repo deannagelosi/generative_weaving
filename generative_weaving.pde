@@ -1,21 +1,21 @@
 import processing.svg.*;
 
-// Declare global variables
-String filename;
+//==== global variables ====//
 int seed;
 int pZoom; 
 int pan;
 
-int rectSize; 
+int cellSize; 
 int weftQuant;
 int warpQuant;
 int numShafts;
 
-int[] rowFrequency;
+int[] rowFrequency; // glitch metrics to check error distribution
 
-LiftPlan liftPlan;
-int[][] drawdown;
-int[][] threading;
+RowData[] liftPlan;
+RowData[] drawdown;
+RowData[] threading;
+RowData[] tieUps;
 
 // weave patterns
 int[][] activePattern;
@@ -36,38 +36,45 @@ int[][] warpFacingTwill = { // 8-shaft
 
 void setup() {
   size(1400, 705); // 47 rects wide and high
-  seed = 16;
+  seed = int(random(1, 100));
   noiseSeed(seed);
   pan = 0;
-  pZoom = 100; // Perlin noise zoom level
+  pZoom = 10; // Perlin noise zoom level
 
-  rectSize = 8; // size of each cell in the output
+  cellSize = 8; // size of each cell in the output
   warpQuant = 144;
   weftQuant = 40;
-  threading = createThreading(8, 144);
-  numShafts = threading.length;
+  numShafts = 8;
+  threading = createThreading(numShafts, warpQuant);
+  tieUps = createTieUps(numShafts);
   activePattern = warpFacingTwill;
 }
 
 void draw() {
-  rowFrequency = new int[6];
-  liftPlan = new LiftPlan(weftQuant);
+  rowFrequency = new int[activePattern.length];
+  
+  // Fill up the liftplan with empty rows
+  liftPlan = new RowData[0];
+  for (int i = 0; i < weftQuant; i++) {
+    RowData newRow = new RowData(new int[0]);
+    liftPlan = addRow(liftPlan, newRow);
+  }
 
-  // fill new liftplan with starter pattern
-  for (int i=0; i < activePattern.length; i++) {
-    liftPlan.setRow(i, activePattern[i]);
+  // Fill first liftplan rows with starter pattern
+  for (int i = 0; i < activePattern.length; i++) {
+    liftPlan[i] = new RowData(activePattern[i]);
   }
 
   int rowPosition = activePattern.length - 1;
   int segmentCounter = 0;
   
-  for (int i=0; i < liftPlan.rows.length; i = i + activePattern.length) {
+  for (int i=0; i < liftPlan.length; i = i + activePattern.length) {
     int[][] modifiedPattern = gradient(activePattern, segmentCounter, rowPosition);
     // Add new pattern to the liftPlan
     for (int j=0; j < modifiedPattern.length; j++) {
       rowPosition++;
       if (rowPosition < weftQuant) {
-        liftPlan.setRow(rowPosition, modifiedPattern[j]);
+        liftPlan[rowPosition].shafts = modifiedPattern[j];
       } else {
         break;
       }
@@ -75,8 +82,8 @@ void draw() {
     segmentCounter++;
   }
   
-  drawdown = createDrawdown(liftPlan);
-  printDraft(liftPlan, drawdown);
+  drawdown = createDrawdown(liftPlan, threading);
+  printDraft(liftPlan, drawdown, threading, tieUps);
 
   // println(rowFrequency);
 
@@ -92,16 +99,17 @@ int[][] gradient(int[][] weaveSegment, int currentLoop, int rowPosition) {
     modWeaveSegment[j] = weaveSegment[j];
   }
 
+
   int px = 0; // left-most point on the rectangle
   for (int i = 0; i < numChanges; i++) {
     if (modWeaveSegment.length > 1) {
       // choose row
-      int py = rowPosition * rectSize; 
+      int py = rowPosition * cellSize; 
       int selectedRow = perlinChoose(modWeaveSegment.length, px, py);
       rowFrequency[selectedRow]++;
 
       // select shaft
-      py = (rowPosition + selectedRow) * rectSize;
+      py = (rowPosition + selectedRow) * cellSize;
       int selectedShaft = perlinChoose(modWeaveSegment[selectedRow].length, px, py);
 
       // update weave
@@ -110,16 +118,13 @@ int[][] gradient(int[][] weaveSegment, int currentLoop, int rowPosition) {
         int newShaft = perlinChoose(numShafts, px, py) + 1; // 0..3
         int[] modRow = {newShaft};
         modWeaveSegment[selectedRow] = modRow; // ex: [3]
-
-        // oops! only one shaft left, remove row
-        // modWeaveSegment = delete2DElement(modWeaveSegment, selectedRow);
       } else {
         int[] modRow = deleteElement(modWeaveSegment[selectedRow], selectedShaft); 
         modWeaveSegment[selectedRow] = modRow;
       }
 
-      // increase y by col width (rectSize)
-      px = px + rectSize;
+      // change sampling position in Perlin noise field
+      px = px + cellSize;
     } 
   }
   
@@ -131,10 +136,11 @@ int perlinChoose(int numItems, int px, int py) {
   // if numItems = 4, will return a num between 0 and 3
   px = px + pan; // add offest when panning
 
+  // noise() never returns 0 or 1, but some value in between and more likely a number in the middle
+  // use trim to adjust row distribution more equally across all shafts when mapping noise to shaft selection
   float trim = 0.3;
   float pNoise = noise(px/pZoom, py/pZoom); //0..1
 
-  // perlin is never fully 0 or 1, so trim to stretch the middle
   if (pNoise < trim) {
     pNoise = trim + 0.01;
   } else if (pNoise > (1 - trim)) {
@@ -145,192 +151,152 @@ int perlinChoose(int numItems, int px, int py) {
   return selected;
 }
 
-int[] chooseRandomShafts() {
-  // create array defining which random shafts to lift
+RowData[] createDrawdown(RowData[] liftPlan, RowData[] threading) {
+  // uses threading and liftplan to make drawdown
+  RowData[] drawdown = new RowData[liftPlan.length];
+  for (int i = 0; i < liftPlan.length; i++) {
 
-  int[] shaftSelection = new int[0];
-  while ((shaftSelection.length == 0) || (shaftSelection.length == 4)) {
-    // randomly selects 1, 2, or 3 shafts to lift
-    shaftSelection = new int[0];
-    for (int i = 1; i < 5; i++) {
-      if (randomBool() == true) {
-        shaftSelection = append(shaftSelection, i);
-      }
-    }
-  }
-
-  return shaftSelection;
-}
-
-int[][] createDrawdown(LiftPlan liftPlan) {
-  // uses threading and lift plan to make drawdown
-
-  int[][] drawdown = new int[liftPlan.rows.length][0];
-
-  for (int i = 0; i < liftPlan.rows.length; i++) {
-
-    int[] drawdownRow = new int[0];
-    // for (int shaft : liftPlan.rows[i]) {
-    //   drawdownRow = concat(drawdownRow, threading[shaft - 1]);
-    // }
-
-    for (int j = 0; j < liftPlan.rows[i].getLength(); j++) {
+    int[] rowShafts = new int[0];
+    for (int j = 0; j < liftPlan[i].shafts.length; j++) {
       // building drawdown by accessing warps lifted
-      // int shaft = liftPlan.rows[i][j];
-      int shaft = liftPlan.getShaft(i, j);
-      drawdownRow = concat(drawdownRow, threading[shaft - 1]);
+      int shaft = liftPlan[i].shafts[j];
+      rowShafts = concat(rowShafts, threading[shaft - 1].shafts);
     }
-    drawdown[i] = drawdownRow;
+
+    drawdown[i] = new RowData(rowShafts);
   }
 
   return drawdown;
 }
 
-int[][] createThreading(int numShafts, int numWarps) {
+RowData[] createThreading(int numShafts, int numWarps) {
   // 4-shaft straight draft
   // int[] shaft1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
   // int[] shaft2 = {2, 6, 10, 14, 18, 22, 26, 30, 34, 38};
   // int[] shaft3 = {3, 7, 11, 15, 19, 23, 27, 31, 35, 39};
   // int[] shaft4 = {4, 8, 12, 16, 20, 24, 28, 32, 36, 40};
   // int[][] threading = {shaft1, shaft2, shaft3, shaft4};
-  int[][] threading = new int[numShafts][0];
+  RowData[] threading = new RowData[numShafts];
   for (int i = 0; i < numShafts; i++) {
-    threading[i] = createShaft(numShafts, numWarps, i + 1);
+
+    // create a shaft tie-up
+    int[] shaft = new int[numWarps / numShafts];
+    for (int j = 0; j < shaft.length; j++) {
+      shaft[j] = (i + 1) + (numShafts * j);
+    }
+
+    threading[i] = new RowData(shaft);
   }
 
   return threading;
 }
 
-int[] createShaft(int numShafts, int numWarps, int whichShaft) {
-  int[] shaft = new int[numWarps / numShafts];
-  for (int i = 0; i < shaft.length; i++) {
-    shaft[i] = whichShaft + (numShafts * i);
-  }
-
-  return shaft;
-}
-
-void printDraft(LiftPlan liftPlan, int[][] drawdown) {
-  // visual output for draft
-  background(100); // dark grey
-
-  int padding = rectSize;
-  int liftPlanWidth = numShafts * rectSize;
-  int threadingHeight = numShafts * rectSize;
-  
-  int[][] tieUps = new int[numShafts][0];
+RowData[] createTieUps(int numShafts) {
+  RowData[] tieUps = new RowData[numShafts];
   // tieUps = {{1}, {2}, {3}, ...}
   for (int i = 0; i < numShafts; i++) {
     int[] shaft = {i + 1};
-    tieUps[i] = shaft; 
+    tieUps[i] = new RowData(shaft);
   }
+
+  return tieUps;
+}
+
+void printDraft(RowData[] liftPlan, RowData[] drawdown, RowData[] threading, RowData[] tieUps) {
+  // visual output for draft
+  background(100); // dark grey
+
+  int padding = cellSize;
+  int liftPlanWidth = numShafts * cellSize;
+  int threadingHeight = numShafts * cellSize;
   
-  for (int row = 0; row < tieUps.length; row++) {
-    for (int col = 0; col < numShafts; col++) {
-
-      if (arrayContains(tieUps[row], col + 1)) {
-        fill(0); // fill rectangle with black
-      } else {
-        fill(255); // no fill
-      }
-
-      // draw rectangle
-      int pixelX = liftPlanWidth - (col * rectSize);
-      int pixelY = threadingHeight - (row * rectSize);
-
-      rect(pixelX, pixelY, rectSize, rectSize);
-    }
-  }
-
-  // print lift plan
-  for (int row = 0; row < liftPlan.rows.length; row++) {
-    for (int col = 0; col < numShafts; col++) {
-
-      if (rowContains(liftPlan.rows[row], col + 1)) {
-        fill(0); // fill rectangle with black
-      } else {
-        fill(255); // no fill
-      }
-
-      // draw rectangle
-      int pixelX = liftPlanWidth - (col * rectSize);
-      int pixelY = 2*padding + threadingHeight + (row * rectSize);
-
-      rect(pixelX, pixelY, rectSize, rectSize);
-    }
-  }
+  // print tie-ups
+  printSection(tieUps, "bottom-right", numShafts, liftPlanWidth, threadingHeight);
 
   // print threading
-  for (int row = 0; row < threading.length; row++) {
-    for (int col = 0; col < warpQuant; col++) {
+  printSection(threading, "bottom-left", warpQuant, 2*padding+liftPlanWidth, threadingHeight);
 
-      if (arrayContains(threading[row], col + 1)) {
+  // print lift plan
+  printSection(liftPlan, "top-right", numShafts, liftPlanWidth, 2*padding+threadingHeight);
+
+  // print drawdown
+  printSection(drawdown, "top-left", warpQuant, 2*padding+liftPlanWidth, 2*padding+threadingHeight);
+}
+
+void printSection(RowData[] sectionData, String mode, int numCols, int leftBuffer, int topBuffer) {
+
+  for (int row = 0; row < sectionData.length; row++) {
+    for (int col = 0; col < numCols; col++) {
+
+      if (arrayContains(sectionData[row].shafts, col + 1)) {
         fill(0); // fill rectangle with black
       } else {
         fill(255); // no fill
       }
 
       // draw rectangle
-      int pixelX = 2*padding + liftPlanWidth + (col * rectSize);
-      int pixelY = threadingHeight - (row * rectSize);
+      int pixelX = 0;
+      int pixelY = 0;
 
-      rect(pixelX, pixelY, rectSize, rectSize);
-    }
-  }
-
-  // print drawdown
-  for (int row = 0; row < drawdown.length; row++) {
-    for (int col = 0; col < warpQuant; col++) {
-
-      if (arrayContains(drawdown[row], col + 1)) {
-        fill(0); // fill rectangle with black, raised warp
-      } else {
-        fill(255); // no fill, lowered warp
+      // mode defines which corner of the grid section to start printing from
+      switch(mode) {
+        case "bottom-right": 
+          pixelX = leftBuffer - (col * cellSize);
+          pixelY = topBuffer - (row * cellSize);
+          break;
+        case "bottom-left": 
+          pixelX = leftBuffer + (col * cellSize);
+          pixelY = topBuffer - (row * cellSize);
+          break;
+        case "top-right": 
+          pixelX = leftBuffer - (col * cellSize);
+          pixelY = topBuffer + (row * cellSize);
+          break;
+        case "top-left": 
+          pixelX = leftBuffer + (col * cellSize);
+          pixelY = topBuffer + (row * cellSize);
+          break;
       }
 
-      // draw rectangle
-      int pixelX = 2*padding + liftPlanWidth + (col * rectSize);
-      int pixelY = 2*padding + threadingHeight + (row * rectSize);
-
-      rect(pixelX, pixelY, rectSize, rectSize);
+      rect(pixelX, pixelY, cellSize, cellSize);
     }
   }
 }
 
+//==== controls ====//
 void keyPressed() {
   if (key == 's') {
-    filename = "drawdowns/drawdown-s" + seed + "-p" + pan + "-z" + pZoom + ".svg";
+    String filename = "drawdowns/drawdown-s" + seed + "-p" + pan + "-z" + pZoom + ".svg";
 
     beginRecord(SVG, filename);
-    printDraft(liftPlan, drawdown);
+    printDraft(liftPlan, drawdown, threading, tieUps);
     endRecord();
 
   } else if (key == CODED) {
     // Zoom and Pan the Perlin Field
     if (keyCode == UP) {
-      pZoom = pZoom + rectSize;
+      pZoom = pZoom + cellSize    ;
       println("pZoom: ", pZoom);
       loop();
     } else if (keyCode == DOWN) {
-      pZoom = pZoom - rectSize;
+      pZoom = pZoom - cellSize    ;
       println("pZoom: ", pZoom);
       loop();
     } else if (keyCode == LEFT) {
-      pan = pan - rectSize;
+      pan = pan - cellSize    ;
       println("pan: ", pan);
       loop();
     }else if (keyCode == RIGHT) {
-      pan = pan + rectSize;
+      pan = pan + cellSize    ;
       println("pan: ", pan);
       loop();
     }
   }
 }
 
-// helper functions
+//==== helper functions ====//
 boolean arrayContains(int[] array, int check) {
   // checks if the array contains an integer
-
   for (int item : array) {
     if (item == check) {
       return true;
@@ -338,22 +304,6 @@ boolean arrayContains(int[] array, int check) {
   }
 
   return false;
-}
-
-boolean rowContains(LiftRow row, int shaft) {
-  // checks if the lift row contains the shaft
-
-  for (int i = 0; i < row.liftedShafts.length; i++) {
-    if (row.liftedShafts[i] == shaft) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-boolean randomBool() {
-  return random(0, 1) <= 0.5;
 }
 
 int[] deleteElement(int[] array, int skipIndex) {
@@ -372,77 +322,25 @@ int[] deleteElement(int[] array, int skipIndex) {
   return modifiedArray;
 }
 
-int[][] delete2DElement(int[][] array, int skipIndex) {
-  // remove item at index position
-  int[][] modifiedArray = new int[array.length - 1][0];
-  int j = 0;
-  for (int i = 0; i < array.length; i++) {
-    if (i == skipIndex) {
-      // skip
-    } else {
-      modifiedArray[j] = array[i];
-      j++;
-    }
-  }
+RowData[] addRow(RowData[] rows, RowData newRow) {
+  RowData[] appendedRows = new RowData[rows.length + 1];
 
-  return modifiedArray;
+  for (int i = 0; i < rows.length; i++) {
+    appendedRows[i] = rows[i];
+  }
+  appendedRows[rows.length] = newRow;
+
+  return appendedRows;
 }
 
-int[] addElement(int[] array, int element) {
-  int[] modifiedArray = new int[array.length + 1];
-  for (int i = 0; i < array.length; i++) {
-    modifiedArray[i] = array[i];
-  }
-  modifiedArray[array.length] = element;
-
-  return modifiedArray;
-}
-
-// class Point {
-//   float x, y;
-//   // constructor
-//   Point(float x_, float y_) {
-//     x = x_;
-//     y = y_;
-//   }
-// }
-
-class LiftRow {
-  // [2, 3]
-  // boolean glitched or not
-  int[] liftedShafts;
+//==== custom classes ====//
+class RowData {
+  int[] shafts;
   boolean glitched;
+
   // constructor
-  LiftRow(int[] liftedShafts_) {
-    liftedShafts = liftedShafts_;
+  RowData(int[] shafts_) {
+    shafts = shafts_;
     glitched = false;
-  }
-
-  int getLength() {
-    return liftedShafts.length;
-  }
-
-  int getShaft(int position) {
-    return liftedShafts[position];
-  }
-
-}
-
-class LiftPlan {
-  // array of liftRows
-  LiftRow[] rows;
-  // constructor
-  LiftPlan(int weftQuant) {
-    // liftPlan = new int[weftQuant][0];
-    rows = new LiftRow[weftQuant];
-  }
-
-  void setRow(int i, int[] whichShafts) {
-    LiftRow newRow = new LiftRow(whichShafts);
-    rows[i] = newRow;
-  }
-
-  int getShaft(int whichRow, int whichShaft) {
-    return rows[whichRow].getShaft(whichShaft);
   }
 }
