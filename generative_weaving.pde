@@ -69,12 +69,13 @@ void draw() {
   int segmentCounter = 0;
   
   for (int i=0; i < liftPlan.length; i = i + activePattern.length) {
-    int[][] modifiedPattern = gradient(activePattern, segmentCounter, rowPosition);
+    RowData[] modLiftPlan = gradientGlitch(activePattern, segmentCounter, rowPosition);
     // Add new pattern to the liftPlan
-    for (int j=0; j < modifiedPattern.length; j++) {
+    for (int j=0; j < modLiftPlan.length; j++) {
       rowPosition++;
       if (rowPosition < weftQuant) {
-        liftPlan[rowPosition].shafts = modifiedPattern[j];
+        // liftPlan[rowPosition].shafts = modLiftPlan[j];
+        liftPlan[rowPosition] = modLiftPlan[j];
       } else {
         break;
       }
@@ -90,37 +91,40 @@ void draw() {
   noLoop();
 }
 
-int[][] gradient(int[][] weaveSegment, int currentLoop, int rowPosition) {
+RowData[] gradientGlitch(int[][] liftPlanSegment, int currentLoop, int rowPosition) {
   int numChanges = currentLoop + 1;
   
-  // copy weaveSegment into modWeaveSegment
-  int[][] modWeaveSegment = new int[weaveSegment.length][0];
-  for (int j = 0; j < weaveSegment.length; j++) {
-    modWeaveSegment[j] = weaveSegment[j];
+  // copy liftPlanSegment into modLiftPlan
+  RowData[] modLiftPlan = new RowData[liftPlanSegment.length];
+  for (int i = 0; i < liftPlanSegment.length; i++) {
+    RowData newRow = new RowData(liftPlanSegment[i]);
+    modLiftPlan[i] = newRow;
   }
-
 
   int px = 0; // left-most point on the rectangle
   for (int i = 0; i < numChanges; i++) {
-    if (modWeaveSegment.length > 1) {
+    if (modLiftPlan.length > 1) {
       // choose row
       int py = rowPosition * cellSize; 
-      int selectedRow = perlinChoose(modWeaveSegment.length, px, py);
+      int selectedRow = perlinChoose(modLiftPlan.length, px, py);
       rowFrequency[selectedRow]++;
 
       // select shaft
       py = (rowPosition + selectedRow) * cellSize;
-      int selectedShaft = perlinChoose(modWeaveSegment[selectedRow].length, px, py);
+      int selectedShaft = perlinChoose(modLiftPlan[selectedRow].shafts.length, px, py);
 
-      // update weave
-      if (modWeaveSegment[selectedRow].length <= 1) {
+      // glitch lift plan row at selected shaft
+      if (modLiftPlan[selectedRow].shafts.length <= 1) {
         // Deleting the shaft will leave none. Choose a new shaft instead.
-        int newShaft = perlinChoose(numShafts, px, py) + 1; // 0..3
-        int[] modRow = {newShaft};
-        modWeaveSegment[selectedRow] = modRow; // ex: [3]
+        int[] newShaftArray = {perlinChoose(numShafts, px, py) + 1}; 
+        if (modLiftPlan[selectedRow].shafts[0] != newShaftArray[0]) {
+          RowData modRow = new RowData(newShaftArray);
+          modRow.glitched = true;
+          modLiftPlan[selectedRow] = modRow; // ex: [3]
+        }        
       } else {
-        int[] modRow = deleteElement(modWeaveSegment[selectedRow], selectedShaft); 
-        modWeaveSegment[selectedRow] = modRow;
+        modLiftPlan[selectedRow].shafts = deleteElement(modLiftPlan[selectedRow].shafts, selectedShaft);
+        modLiftPlan[selectedRow].glitched = true;
       }
 
       // change sampling position in Perlin noise field
@@ -128,7 +132,7 @@ int[][] gradient(int[][] weaveSegment, int currentLoop, int rowPosition) {
     } 
   }
   
-  return modWeaveSegment; 
+  return modLiftPlan; 
 }
 
 int perlinChoose(int numItems, int px, int py) {
@@ -164,6 +168,9 @@ RowData[] createDrawdown(RowData[] liftPlan, RowData[] threading) {
     }
 
     drawdown[i] = new RowData(rowShafts);
+    if (liftPlan[i].glitched == true) {
+      drawdown[i].glitched = true;
+    }
   }
 
   return drawdown;
@@ -228,10 +235,19 @@ void printSection(RowData[] sectionData, String mode, int numCols, int leftBuffe
   for (int row = 0; row < sectionData.length; row++) {
     for (int col = 0; col < numCols; col++) {
 
-      if (arrayContains(sectionData[row].shafts, col + 1)) {
-        fill(0); // fill rectangle with black
+      boolean warpLifted = arrayContains(sectionData[row].shafts, col + 1);
+      boolean weftGlitched = sectionData[row].glitched;
+
+      if (warpLifted == true) {
+        fill(0); // black cell
       } else {
-        fill(255); // no fill
+        fill(255); // white cell
+      }
+
+      if (warpLifted == true && weftGlitched == true) {
+        fill(255, 51, 153); // pink cell
+      } else if (warpLifted == false && weftGlitched == true){
+        fill(255, 204, 255); // light pink cell
       }
 
       // draw rectangle
