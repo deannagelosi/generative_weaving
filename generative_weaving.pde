@@ -4,60 +4,53 @@ import processing.svg.*;
 int seed;
 int pZoom; 
 int pan;
+int glitchMod;
 
 int cellSize; 
 int weftQuant;
 int warpQuant;
 int numShafts;
 
-int[] rowFrequency; // glitch metrics to check error distribution
+// weave patterns
+int selectedPattern;
+int[] threadingBase;
+int[][] patternShafts;
 
 RowData[] liftPlan;
 RowData[] drawdown;
 RowData[] threading;
 RowData[] tieUps;
 
-// weave patterns
-int[][] activePattern;
-// int[][] twoByTwoTwill = { // 4-shaft
-//   {2, 3}, 
-//   {3, 4}, 
-//   {1, 4}, 
-//   {3, 4}, 
-//   {2, 3}, 
-//   {1, 2}
-// };
-// int[][] warpFacingTwill = { // 8-shaft
-//   {1, 2, 3, 5, 6, 7},
-//   {2, 3, 4, 6, 7, 8},
-//   {1, 3, 4, 5, 7, 8},
-//   {1, 2, 4, 5, 6, 8}
-// };
+// glitch metrics to check error distribution
+int[] rowFrequency;
 
 void setup() {
-  size(1400, 705); // 47 rects wide and high
+  size(705, 705); // 47 rects wide and high
   seed = int(random(1, 100));
   noiseSeed(seed);
   pan = 0;
   pZoom = 10; // Perlin noise zoom level
-
-  cellSize = 8; // size of each cell in the output
-  warpQuant = 144;
-  weftQuant = 40;
-  numShafts = 8;
-  threading = createThreading(numShafts, warpQuant);
-  tieUps = createTieUps(numShafts);
+  glitchMod = 0;
+  cellSize = 15; // size of each cell in the output
   
-  Pattern[] patterns = importJSONPatterns("patterns.json"); 
-  println(patterns[0].name + " - " + patterns[0].numShafts);
-  // println(patterns[0].shafts[0]);
+  // loom variables
+  warpQuant = 40;
+  weftQuant = 40;
 
-  // activePattern = warpFacingTwill;
-  activePattern = patterns[1].shafts;
+  // weave pattern variables
+  Pattern[] patterns = importJSONPatterns("patterns.json"); 
+  selectedPattern = 0;
+  patternShafts = patterns[selectedPattern].shafts;
+  numShafts = patterns[selectedPattern].numShafts;
+  threadingBase = patterns[selectedPattern].threadingBase;
+
+  threading = createThreading(threadingBase, warpQuant, numShafts);
+  tieUps = createTieUps(numShafts);
+  println("Selected Pattern: ", patterns[0].name);
 }
 
 void draw() {
-  rowFrequency = new int[activePattern.length];
+  rowFrequency = new int[patternShafts.length];
   
   // Fill up the liftplan with empty rows
   liftPlan = new RowData[0];
@@ -67,20 +60,19 @@ void draw() {
   }
 
   // Fill first liftplan rows with starter pattern
-  for (int i = 0; i < activePattern.length; i++) {
-    liftPlan[i] = new RowData(activePattern[i]);
+  for (int i = 0; i < patternShafts.length; i++) {
+    liftPlan[i] = new RowData(patternShafts[i]);
   }
 
-  int rowPosition = activePattern.length - 1;
+  int rowPosition = patternShafts.length - 1;
   int segmentCounter = 0;
   
-  for (int i=0; i < liftPlan.length; i = i + activePattern.length) {
-    RowData[] modLiftPlan = gradientGlitch(activePattern, segmentCounter, rowPosition);
+  for (int i=0; i < liftPlan.length; i = i + patternShafts.length) {
+    RowData[] modLiftPlan = gradientGlitch(patternShafts, segmentCounter, rowPosition);
     // Add new pattern to the liftPlan
     for (int j=0; j < modLiftPlan.length; j++) {
       rowPosition++;
       if (rowPosition < weftQuant) {
-        // liftPlan[rowPosition].shafts = modLiftPlan[j];
         liftPlan[rowPosition] = modLiftPlan[j];
       } else {
         break;
@@ -98,7 +90,7 @@ void draw() {
 }
 
 RowData[] gradientGlitch(int[][] liftPlanSegment, int currentLoop, int rowPosition) {
-  int numChanges = currentLoop + 1;
+  int numChanges = currentLoop + 1 + glitchMod;
   
   // copy liftPlanSegment into modLiftPlan
   RowData[] modLiftPlan = new RowData[liftPlanSegment.length];
@@ -117,19 +109,19 @@ RowData[] gradientGlitch(int[][] liftPlanSegment, int currentLoop, int rowPositi
 
       // select shaft
       py = (rowPosition + selectedRow) * cellSize;
-      int selectedShaft = perlinChoose(modLiftPlan[selectedRow].shafts.length, px, py);
+      int selectedShaft = perlinChoose(modLiftPlan[selectedRow].positions.length, px, py);
 
       // glitch lift plan row at selected shaft
-      if (modLiftPlan[selectedRow].shafts.length <= 1) {
+      if (modLiftPlan[selectedRow].positions.length <= 1) {
         // Deleting the shaft will leave none. Choose a new shaft instead.
         int[] newShaftArray = {perlinChoose(numShafts, px, py) + 1}; 
-        if (modLiftPlan[selectedRow].shafts[0] != newShaftArray[0]) {
+        if (modLiftPlan[selectedRow].positions[0] != newShaftArray[0]) {
           RowData modRow = new RowData(newShaftArray);
           modRow.glitched = true;
           modLiftPlan[selectedRow] = modRow; // ex: [3]
         }        
       } else {
-        modLiftPlan[selectedRow].shafts = deleteElement(modLiftPlan[selectedRow].shafts, selectedShaft);
+        modLiftPlan[selectedRow].positions = deleteElement(modLiftPlan[selectedRow].positions, selectedShaft);
         modLiftPlan[selectedRow].glitched = true;
       }
 
@@ -166,14 +158,18 @@ RowData[] createDrawdown(RowData[] liftPlan, RowData[] threading) {
   RowData[] drawdown = new RowData[liftPlan.length];
   for (int i = 0; i < liftPlan.length; i++) {
 
-    int[] rowShafts = new int[0];
-    for (int j = 0; j < liftPlan[i].shafts.length; j++) {
+    int[] rowLiftedWarps = new int[0];
+    for (int j = 0; j < liftPlan[i].positions.length; j++) {
       // building drawdown by accessing warps lifted
-      int shaft = liftPlan[i].shafts[j];
-      rowShafts = concat(rowShafts, threading[shaft - 1].shafts);
+      
+      int shaft = liftPlan[i].positions[j];
+      rowLiftedWarps = concat(rowLiftedWarps, threading[shaft - 1].positions);
     }
 
-    drawdown[i] = new RowData(rowShafts);
+    // println("lifted warps on a row:");
+    // println(rowLiftedWarps);
+
+    drawdown[i] = new RowData(rowLiftedWarps);
     if (liftPlan[i].glitched == true) {
       drawdown[i].glitched = true;
     }
@@ -182,23 +178,29 @@ RowData[] createDrawdown(RowData[] liftPlan, RowData[] threading) {
   return drawdown;
 }
 
-RowData[] createThreading(int numShafts, int numWarps) {
-  // 4-shaft straight draft
-  // int[] shaft1 = {1, 5, 9, 13, 17, 21, 25, 29, 33, 37};
-  // int[] shaft2 = {2, 6, 10, 14, 18, 22, 26, 30, 34, 38};
-  // int[] shaft3 = {3, 7, 11, 15, 19, 23, 27, 31, 35, 39};
-  // int[] shaft4 = {4, 8, 12, 16, 20, 24, 28, 32, 36, 40};
-  // int[][] threading = {shaft1, shaft2, shaft3, shaft4};
-  RowData[] threading = new RowData[numShafts];
-  for (int i = 0; i < numShafts; i++) {
+RowData[] createThreading(int[] threadingBase, int targetSize, int numShafts) {
+  int[] fullThread = fillArray(threadingBase, targetSize); // [1,2,3,4,1,2,3,4, etc...]
 
-    // create a shaft tie-up
-    int[] shaft = new int[numWarps / numShafts];
-    for (int j = 0; j < shaft.length; j++) {
-      shaft[j] = (i + 1) + (numShafts * j);
+  // index the position data for all the warp shaft connections
+  int[][] positions = new int[numShafts][0];
+
+  for (int i = 0; i < fullThread.length; i++) {
+    int currKey = fullThread[i];
+
+    if (positions[currKey - 1].length == 0) {
+      // not seen this key yet, add it
+      positions[currKey - 1] = new int[]{i + 1};
+    } else {
+      // update existing key
+      positions[currKey-1] = append(positions[currKey-1], i + 1);
     }
+  }
 
-    threading[i] = new RowData(shaft);
+  RowData[] threading = new RowData[numShafts];
+
+  for (int i = 0; i < threading.length; i++) {  
+    RowData threadRow = new RowData(positions[i]);
+    threading[i] = threadRow;
   }
 
   return threading;
@@ -241,7 +243,7 @@ void printSection(RowData[] sectionData, String mode, int numCols, int leftBuffe
   for (int row = 0; row < sectionData.length; row++) {
     for (int col = 0; col < numCols; col++) {
 
-      boolean warpLifted = arrayContains(sectionData[row].shafts, col + 1);
+      boolean warpLifted = arrayContains(sectionData[row].positions, col + 1);
       boolean weftGlitched = sectionData[row].glitched;
 
       if (warpLifted == true) {
@@ -288,12 +290,20 @@ void printSection(RowData[] sectionData, String mode, int numCols, int leftBuffe
 //==== controls ====//
 void keyPressed() {
   if (key == 's') {
-    String filename = "drawdowns/drawdown-s" + seed + "-p" + pan + "-z" + pZoom + ".svg";
+    String filename = "drawdowns/drawdown-s" + seed + "-p" + pan + "-z" + pZoom + "-g" + glitchMod + ".svg";
 
     beginRecord(SVG, filename);
     printDraft(liftPlan, drawdown, threading, tieUps);
     endRecord();
 
+  } else if (key == 'g') {
+    glitchMod++;
+    println("glitchMod: ", glitchMod);
+    loop();
+  } else if (key == 'd') {
+    glitchMod--;
+    println("glitchMod: ", glitchMod);
+    loop();
   } else if (key == CODED) {
     // Zoom and Pan the Perlin Field
     if (keyCode == UP) {
@@ -327,8 +337,8 @@ Pattern[] importJSONPatterns(String filename) {
     // load pattern
     JSONObject patternJSON = patternsJSON.getJSONObject(i); 
     String name = patternJSON.getString("name");
-    int numShafts = patternJSON.getInt("numShafts");
-
+    int numShafts = patternJSON.getInt("numShafts"); 
+    
     // parse the shafts 2d int array
     JSONArray shaftsJSON = patternJSON.getJSONArray("shafts");
     int[][] shafts = new int[shaftsJSON.size()][0];
@@ -343,7 +353,13 @@ Pattern[] importJSONPatterns(String filename) {
       shafts[j] = shaft;
     }
 
-    Pattern pattern = new Pattern(name, numShafts, shafts);
+    JSONArray threadingJSON = patternJSON.getJSONArray("threading");
+    int[] threadingBase = new int[threadingJSON.size()];
+    for (int j = 0; j < threadingJSON.size(); j++) {
+      threadingBase[j] = threadingJSON.getInt(j);      
+    }
+
+    Pattern pattern = new Pattern(name, numShafts, shafts, threadingBase);
     patterns[i] = pattern;
   }
 
@@ -388,14 +404,32 @@ RowData[] addRow(RowData[] rows, RowData newRow) {
   return appendedRows;
 }
 
+int[] fillArray(int[] array, int targetSize) {
+  // duplicating array until it hits the target length
+  int loopQuant = ceil(targetSize / array.length);
+  int[] filledArray = new int[0];
+
+  for (int i = 0; i < loopQuant; i++) {
+    for (int j = 0; j < array.length; j++) {
+      if (filledArray.length == targetSize) {
+        break;
+      } else {
+        filledArray = append(filledArray, array[j]);
+      }
+    }
+  }
+
+  return filledArray;
+}
+
 //==== custom classes ====//
 class RowData {
-  int[] shafts;
+  int[] positions; // selected shafts or threads 
   boolean glitched;
 
   // constructor
-  RowData(int[] shafts_) {
-    shafts = shafts_;
+  RowData(int[] positions_) {
+    positions = positions_;
     glitched = false;
   }
 }
@@ -404,11 +438,13 @@ class Pattern {
   String name;
   int numShafts;
   int[][] shafts;
+  int[] threadingBase;
 
   // constructor
-  Pattern(String name_, int numShafts_, int[][] shafts_) {
+  Pattern(String name_, int numShafts_, int[][] shafts_, int[] threading_) {
     name = name_;
     numShafts = numShafts_;
     shafts = shafts_;
+    threadingBase = threading_;
   }
 }
