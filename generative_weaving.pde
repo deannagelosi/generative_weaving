@@ -406,7 +406,7 @@ RowData[] addRow(RowData[] rows, RowData newRow) {
 
 int[] fillArray(int[] array, int targetSize) {
   // duplicating array until it hits the target length
-  int loopQuant = ceil(targetSize / array.length);
+  int loopQuant = ceil(float(targetSize) / float(array.length));
   int[] filledArray = new int[0];
 
   for (int i = 0; i < loopQuant; i++) {
