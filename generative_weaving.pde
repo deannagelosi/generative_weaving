@@ -39,7 +39,7 @@ void setup() {
 
   // weave pattern variables
   Pattern[] patterns = importJSONPatterns("patterns.json"); 
-  selectedPattern = 0;
+  selectedPattern = 7;
   patternShafts = patterns[selectedPattern].shafts;
   numShafts = patterns[selectedPattern].numShafts;
   threadingBase = patterns[selectedPattern].threadingBase;
