@@ -5,6 +5,7 @@ int seed;
 int pZoom; 
 int pan;
 int glitchMod;
+int glitchSectionSize;
 
 int cellSize; 
 int weftQuant;
@@ -43,6 +44,7 @@ void setup() {
   patternShafts = patterns[selectedPattern].shafts;
   numShafts = patterns[selectedPattern].numShafts;
   threadingBase = patterns[selectedPattern].threadingBase;
+  glitchSectionSize = patterns[selectedPattern].glitchSectionSize;
 
   threading = createThreading(threadingBase, warpQuant, numShafts);
   tieUps = createTieUps(numShafts);
@@ -51,34 +53,42 @@ void setup() {
 
 void draw() {
   rowFrequency = new int[patternShafts.length];
-  
-  // Fill up the liftplan with empty rows
+
+  // create unglitched lift plan by tiling the pattern
+  int patternLength = patternShafts.length;
   liftPlan = new RowData[0];
-  for (int i = 0; i < weftQuant; i++) {
-    RowData newRow = new RowData(new int[0]);
-    liftPlan = addRow(liftPlan, newRow);
-  }
 
-  // Fill first liftplan rows with starter pattern
-  for (int i = 0; i < patternShafts.length; i++) {
-    liftPlan[i] = new RowData(patternShafts[i]);
-  }
-
-  int rowPosition = patternShafts.length - 1;
-  int segmentCounter = 0;
-  
-  for (int i=0; i < liftPlan.length; i = i + patternShafts.length) {
-    RowData[] modLiftPlan = gradientGlitch(patternShafts, segmentCounter, rowPosition);
-    // Add new pattern to the liftPlan
-    for (int j=0; j < modLiftPlan.length; j++) {
-      rowPosition++;
-      if (rowPosition < weftQuant) {
-        liftPlan[rowPosition] = modLiftPlan[j];
+  for (int i = 0; i < weftQuant; i = i + patternLength) {
+    for (int j = 0; j < patternLength; j++) {
+      if (liftPlan.length <= weftQuant) {
+        // append the next row
+        int[] tempRow = patternShafts[j];
+        RowData newRow = new RowData(tempRow);
+        liftPlan = addRow(liftPlan, newRow);
       } else {
         break;
       }
     }
-    segmentCounter++;
+  }
+
+  int currRow = 0;
+  int currSection = 0;
+  // glitch sections of lift plan, increasing in frequency, deterministally
+  for (int i = 0; i < liftPlan.length; i = i + glitchSectionSize) {
+    int sliceSize; 
+    if (liftPlan.length - currRow > glitchSectionSize) {
+      sliceSize = glitchSectionSize;
+    } else {
+      sliceSize = liftPlan.length - currRow;
+    }
+    // glitch section
+    RowData[] slice = (RowData[]) subset(liftPlan, i, sliceSize);
+    RowData[] glitchSection = gradientGlitch(slice, currSection, currRow);
+    for (int j = 0; j < glitchSection.length; j++) {
+      liftPlan[currRow] = glitchSection[j];
+      currRow++;
+    }
+    currSection++;
   }
   
   drawdown = createDrawdown(liftPlan, threading);
@@ -89,13 +99,18 @@ void draw() {
   noLoop();
 }
 
-RowData[] gradientGlitch(int[][] liftPlanSegment, int currentLoop, int rowPosition) {
-  int numChanges = currentLoop + 1 + glitchMod;
+RowData[] gradientGlitch(RowData[] liftPlanSegment, int currSection, int currRow) {
+  int numChanges; 
+  if (currSection == 0) {
+    numChanges = 0;
+  } else {
+    numChanges = currSection + glitchMod;
+  }
   
   // copy liftPlanSegment into modLiftPlan
   RowData[] modLiftPlan = new RowData[liftPlanSegment.length];
   for (int i = 0; i < liftPlanSegment.length; i++) {
-    RowData newRow = new RowData(liftPlanSegment[i]);
+    RowData newRow = new RowData(liftPlanSegment[i].positions);
     modLiftPlan[i] = newRow;
   }
 
@@ -103,12 +118,12 @@ RowData[] gradientGlitch(int[][] liftPlanSegment, int currentLoop, int rowPositi
   for (int i = 0; i < numChanges; i++) {
     if (modLiftPlan.length > 1) {
       // choose row
-      int py = rowPosition * cellSize; 
+      int py = currRow * cellSize; 
       int selectedRow = perlinChoose(modLiftPlan.length, px, py);
       rowFrequency[selectedRow]++;
 
       // select shaft
-      py = (rowPosition + selectedRow) * cellSize;
+      py = (currRow + selectedRow) * cellSize;
       int selectedShaft = perlinChoose(modLiftPlan[selectedRow].positions.length, px, py);
 
       // glitch lift plan row at selected shaft
@@ -338,6 +353,7 @@ Pattern[] importJSONPatterns(String filename) {
     JSONObject patternJSON = patternsJSON.getJSONObject(i); 
     String name = patternJSON.getString("name");
     int numShafts = patternJSON.getInt("numShafts"); 
+    int glitchSectionSize = patternJSON.getInt("glitchSectionSize");
     
     // parse the shafts 2d int array
     JSONArray shaftsJSON = patternJSON.getJSONArray("shafts");
@@ -359,7 +375,7 @@ Pattern[] importJSONPatterns(String filename) {
       threadingBase[j] = threadingJSON.getInt(j);      
     }
 
-    Pattern pattern = new Pattern(name, numShafts, shafts, threadingBase);
+    Pattern pattern = new Pattern(name, numShafts, shafts, threadingBase, glitchSectionSize);
     patterns[i] = pattern;
   }
 
@@ -439,12 +455,14 @@ class Pattern {
   int numShafts;
   int[][] shafts;
   int[] threadingBase;
+  int glitchSectionSize;
 
   // constructor
-  Pattern(String name_, int numShafts_, int[][] shafts_, int[] threading_) {
+  Pattern(String name_, int numShafts_, int[][] shafts_, int[] threading_, int glitchSectionSize_) {
     name = name_;
     numShafts = numShafts_;
     shafts = shafts_;
     threadingBase = threading_;
+    glitchSectionSize = glitchSectionSize_;
   }
 }
