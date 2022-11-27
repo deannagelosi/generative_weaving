@@ -1,4 +1,5 @@
 import processing.svg.*;
+import java.util.Arrays;
 
 //==== global variables ====//
 int seed;
@@ -62,8 +63,8 @@ void draw() {
     for (int j = 0; j < patternLength; j++) {
       if (liftPlan.length <= weftQuant) {
         // append the next row
-        int[] tempRow = patternShafts[j];
-        RowData newRow = new RowData(tempRow);
+        int[] importedRow = patternShafts[j];
+        RowData newRow = new RowData(importedRow);
         liftPlan = addRow(liftPlan, newRow);
       } else {
         break;
@@ -109,10 +110,7 @@ RowData[] gradientGlitch(RowData[] liftPlanSegment, int currSection, int currRow
   
   // copy liftPlanSegment into modLiftPlan
   RowData[] modLiftPlan = new RowData[liftPlanSegment.length];
-  for (int i = 0; i < liftPlanSegment.length; i++) {
-    RowData newRow = new RowData(liftPlanSegment[i].positions);
-    modLiftPlan[i] = newRow;
-  }
+  arrayCopy(liftPlanSegment, modLiftPlan);
 
   int px = 0; // left-most point on the rectangle
   for (int i = 0; i < numChanges; i++) {
@@ -126,18 +124,46 @@ RowData[] gradientGlitch(RowData[] liftPlanSegment, int currSection, int currRow
       py = (currRow + selectedRow) * cellSize;
       int selectedShaft = perlinChoose(modLiftPlan[selectedRow].positions.length, px, py);
 
-      // glitch lift plan row at selected shaft
-      if (modLiftPlan[selectedRow].positions.length <= 1) {
-        // Deleting the shaft will leave none. Choose a new shaft instead.
-        int[] newShaftArray = {perlinChoose(numShafts, px, py) + 1}; 
-        if (modLiftPlan[selectedRow].positions[0] != newShaftArray[0]) {
-          RowData modRow = new RowData(newShaftArray);
-          modRow.glitched = true;
-          modLiftPlan[selectedRow] = modRow; // ex: [3]
-        }        
-      } else {
-        modLiftPlan[selectedRow].positions = deleteElement(modLiftPlan[selectedRow].positions, selectedShaft);
+      // three possible modifications: 1) add a shaft, 2) remove a shaft, and 3) switch a shaft
+      int whichGlitch = perlinChoose(3, px, py);
+      if (whichGlitch == 0) { 
+        // add a shaft
+        if (modLiftPlan[selectedRow].positions.length < numShafts - 1) {
+
+          int newShaft = perlinChoose(numShafts, px, py) + 1;
+          if (arrayContains(modLiftPlan[selectedRow].positions, newShaft) == false) {
+            int[] newRow = append(modLiftPlan[selectedRow].positions, newShaft);
+            modLiftPlan[selectedRow].positions = newRow;
+          } else {
+            // cannot add any more shafts
+            whichGlitch = perlinChoose(2, px, py) + 1;
+          }
+        } else {
+          // cannot add any more shafts
+          whichGlitch = perlinChoose(2, px, py) + 1;
+        }
+      }  
+      
+      if (whichGlitch == 1) {
+        // remove a shaft
+        if (modLiftPlan[selectedRow].positions.length > 1) {
+          modLiftPlan[selectedRow].positions = deleteElement(modLiftPlan[selectedRow].positions, selectedShaft);    
+        } else {
+          // deleting the last shaft will leave none, choose a new shaft instead
+          whichGlitch = 2;
+        }
+      } 
+      
+      if (whichGlitch == 2) {
+        // switch a shaft
+        modLiftPlan[selectedRow].positions = switchShaft(modLiftPlan[selectedRow].positions, px, py);
+      }
+
+      // check if glitch was successful
+      if (Arrays.equals(modLiftPlan[selectedRow].positions, modLiftPlan[selectedRow].backupPositions) == false) {
         modLiftPlan[selectedRow].glitched = true;
+      } else {
+        modLiftPlan[selectedRow].glitched = false;
       }
 
       // change sampling position in Perlin noise field
@@ -166,6 +192,21 @@ int perlinChoose(int numItems, int px, int py) {
   int selected = floor(map(pNoise, trim, (1-trim), 0, numItems));
 
   return selected;
+}
+
+int[] switchShaft(int[] currentRow, int px, int py) {
+  int selectedShaft = perlinChoose(currentRow.length, px, py);
+
+  // delete selected shaft from current row
+  int[] newRow = deleteElement(currentRow, selectedShaft);
+
+  // choose new shaft
+  int newShaft = perlinChoose(numShafts, px, py) + 1; 
+
+  // add new shaft to current row
+  newRow = append(newRow, newShaft);
+
+  return newRow;
 }
 
 RowData[] createDrawdown(RowData[] liftPlan, RowData[] threading) {
@@ -441,11 +482,16 @@ int[] fillArray(int[] array, int targetSize) {
 //==== custom classes ====//
 class RowData {
   int[] positions; // selected shafts or threads 
+  int[] backupPositions;
   boolean glitched;
 
   // constructor
   RowData(int[] positions_) {
     positions = positions_;
+
+    backupPositions = new int[positions.length];
+    arrayCopy(positions, backupPositions);
+
     glitched = false;
   }
 }
