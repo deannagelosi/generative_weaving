@@ -12,6 +12,8 @@ int cellSize;
 int weftQuant;
 int warpQuant;
 int numShafts;
+PFont rowNum;
+boolean showLines;
 
 // weave patterns
 int selectedPattern;
@@ -27,13 +29,15 @@ RowData[] tieUps;
 int[] rowFrequency;
 
 void setup() {
-  size(705, 705); // 47 rects wide and high
+  size(720, 705); 
   seed = int(random(1, 100));
   noiseSeed(seed);
   pan = 0;
   pZoom = 10; // Perlin noise zoom level
   glitchMod = 0;
   cellSize = 15; // size of each cell in the output
+  rowNum = createFont("Arial",16,true);
+  showLines = false;
   
   // loom variables
   warpQuant = 40;
@@ -49,7 +53,7 @@ void setup() {
 
   threading = createThreading(threadingBase, warpQuant, numShafts);
   tieUps = createTieUps(numShafts);
-  println("Selected Pattern: ", patterns[0].name);
+  println("Selected Pattern: ", patterns[selectedPattern].name);
 }
 
 void draw() {
@@ -282,16 +286,32 @@ void printDraft(RowData[] liftPlan, RowData[] drawdown, RowData[] threading, Row
   int threadingHeight = numShafts * cellSize;
   
   // print tie-ups
-  printSection(tieUps, "bottom-right", numShafts, liftPlanWidth, threadingHeight);
+  printSection(tieUps, "bottom-right", numShafts, liftPlanWidth+padding, threadingHeight);
 
   // print threading
-  printSection(threading, "bottom-left", warpQuant, 2*padding+liftPlanWidth, threadingHeight);
+  printSection(threading, "bottom-left", warpQuant, 3*padding+liftPlanWidth, threadingHeight);
 
   // print lift plan
-  printSection(liftPlan, "top-right", numShafts, liftPlanWidth, 2*padding+threadingHeight);
+  printSection(liftPlan, "top-right", numShafts, liftPlanWidth+padding, 2*padding+threadingHeight);
 
   // print drawdown
-  printSection(drawdown, "top-left", warpQuant, 2*padding+liftPlanWidth, 2*padding+threadingHeight);
+  printSection(drawdown, "top-left", warpQuant, 3*padding+liftPlanWidth, 2*padding+threadingHeight);
+
+  if (showLines == true) {
+    textFont(rowNum, 12);                  
+    textAlign(RIGHT);
+    int numX = cellSize + 7;
+    int numY = 7*cellSize - 2;    
+    for (int i = 40; i > 0; i--) {
+      if (i % 5 == 0) {
+        fill(255, 204, 255);
+      } else {
+        fill(255);
+      }
+      text(i, numX, numY);
+      numY = numY + cellSize;
+    }  
+  }                
 }
 
 void printSection(RowData[] sectionData, String mode, int numCols, int leftBuffer, int topBuffer) {
@@ -359,6 +379,9 @@ void keyPressed() {
   } else if (key == 'd') {
     glitchMod--;
     println("glitchMod: ", glitchMod);
+    loop();
+  } else if (key == 'r') {
+    showLines = !showLines;
     loop();
   } else if (key == CODED) {
     // Zoom and Pan the Perlin Field
