@@ -29,23 +29,25 @@ RowData[] tieUps;
 int[] rowFrequency;
 
 void setup() {
-  size(720, 705); 
+  // size(720, 705); 
+  size(720, 1400);
   seed = int(random(1, 100));
   noiseSeed(seed);
   pan = 0;
   pZoom = 10; // Perlin noise zoom level
   glitchMod = 0;
-  cellSize = 15; // size of each cell in the output
-  rowNum = createFont("Arial",16,true);
+  // cellSize = 15; // size of each cell in the output
+  cellSize = 8;
+  rowNum = createFont("Arial",10,true);
   showLines = false;
   
   // loom variables
-  warpQuant = 40;
-  weftQuant = 40;
+  warpQuant = 45;
+  weftQuant = 55;
 
   // weave pattern variables
   Pattern[] patterns = importJSONPatterns("patterns.json"); 
-  selectedPattern = 7;
+  selectedPattern = 14;
   patternShafts = patterns[selectedPattern].shafts;
   numShafts = patterns[selectedPattern].numShafts;
   threadingBase = patterns[selectedPattern].threadingBase;
@@ -298,11 +300,11 @@ void printDraft(RowData[] liftPlan, RowData[] drawdown, RowData[] threading, Row
   printSection(drawdown, "top-left", warpQuant, 3*padding+liftPlanWidth, 2*padding+threadingHeight);
 
   if (showLines == true) {
-    textFont(rowNum, 12);                  
+    textFont(rowNum, 10);                  
     textAlign(RIGHT);
     int numX = cellSize + 7;
     int numY = 7*cellSize - 2;    
-    for (int i = 40; i > 0; i--) {
+    for (int i = weftQuant; i > 0; i--) {
       if (i % 5 == 0) {
         fill(255, 204, 255);
       } else {
