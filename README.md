@@ -6,8 +6,10 @@ This program generates weaving drafts as svg files based on defined parameters. 
 
 <figure>
     <p align="center">    
-    <img src="img/rose-demo.gif" alt="generated weaving draft" style="width:100%">
-    <figcaption align="center"><b>Example output of a glitched weave draft</b></figcaption>
+        <img src="img/rose-demo.gif" alt="generated weaving draft" style="width:100%">
+    </p>
+    <p align="center">
+        <figcaption><b>Example output of a glitched weave draft</b></figcaption>
     </p>
 </figure>
 
