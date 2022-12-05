@@ -4,10 +4,10 @@
 
 This program generates weaving drafts as svg files based on defined parameters. It takes as input a known weaving structure, e.g. twill or satin, and glitches the design with increasing frequency. The glitches are shaped by a Perlin noise field which produces deterministic results. Drafts can be modified by panning and zooming around the noise field and increasing/decreasing a glitch modifier.
 
-<figure>
+<center><figure>
 <img src="img/rose-demo.gif" alt="generated weaving draft" style="width:100%">
 <figcaption align = "center"><b>Example output of a glitched weave draft</b></figcaption>
-</figure>
+</figure></center>
 
 ## Weave Structure Profiles
 
