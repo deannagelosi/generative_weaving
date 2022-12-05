@@ -15,10 +15,10 @@ int numShafts;
 PFont rowNum;
 boolean showLines;
 
-// weave patterns
-int selectedPattern;
+// weave structures
+int selectedStructure;
 int[] threadingBase;
-int[][] patternShafts;
+int[][] structureShafts;
 
 RowData[] liftPlan;
 RowData[] drawdown;
@@ -45,31 +45,31 @@ void setup() {
   warpQuant = 45;
   weftQuant = 55;
 
-  // weave pattern variables
-  Pattern[] patterns = importJSONPatterns("patterns.json"); 
-  selectedPattern = 14;
-  patternShafts = patterns[selectedPattern].shafts;
-  numShafts = patterns[selectedPattern].numShafts;
-  threadingBase = patterns[selectedPattern].threadingBase;
-  glitchSectionSize = patterns[selectedPattern].glitchSectionSize;
+  // weave structure variables
+  Structure[] structures = importJSONStructures("structures.json"); 
+  selectedStructure = 14;
+  structureShafts = structures[selectedStructure].shafts;
+  numShafts = structures[selectedStructure].numShafts;
+  threadingBase = structures[selectedStructure].threadingBase;
+  glitchSectionSize = structures[selectedStructure].glitchSectionSize;
 
   threading = createThreading(threadingBase, warpQuant, numShafts);
   tieUps = createTieUps(numShafts);
-  println("Selected Pattern: ", patterns[selectedPattern].name);
+  println("Selected Structure: ", structures[selectedStructure].name);
 }
 
 void draw() {
-  rowFrequency = new int[patternShafts.length];
+  rowFrequency = new int[structureShafts.length];
 
-  // create unglitched lift plan by tiling the pattern
-  int patternLength = patternShafts.length;
+  // create unglitched lift plan by tiling the structure
+  int structureLength = structureShafts.length;
   liftPlan = new RowData[0];
 
-  for (int i = 0; i < weftQuant; i = i + patternLength) {
-    for (int j = 0; j < patternLength; j++) {
+  for (int i = 0; i < weftQuant; i = i + structureLength) {
+    for (int j = 0; j < structureLength; j++) {
       if (liftPlan.length <= weftQuant) {
         // append the next row
-        int[] importedRow = patternShafts[j];
+        int[] importedRow = structureShafts[j];
         RowData newRow = new RowData(importedRow);
         liftPlan = addRow(liftPlan, newRow);
       } else {
@@ -408,21 +408,21 @@ void keyPressed() {
 }
 
 //==== helper functions ====//
-Pattern[] importJSONPatterns(String filename) {
+Structure[] importJSONStructures(String filename) {
 
-  JSONArray patternsJSON = loadJSONArray(filename);
+  JSONArray structuresJSON = loadJSONArray(filename);
 
-  Pattern[] patterns = new Pattern[patternsJSON.size()];
-  for (int i = 0; i < patternsJSON.size(); i++) {
+  Structure[] structures = new Structure[structuresJSON.size()];
+  for (int i = 0; i < structuresJSON.size(); i++) {
 
-    // load pattern
-    JSONObject patternJSON = patternsJSON.getJSONObject(i); 
-    String name = patternJSON.getString("name");
-    int numShafts = patternJSON.getInt("numShafts"); 
-    int glitchSectionSize = patternJSON.getInt("glitchSectionSize");
+    // load structure
+    JSONObject structureJSON = structuresJSON.getJSONObject(i); 
+    String name = structureJSON.getString("name");
+    int numShafts = structureJSON.getInt("numShafts"); 
+    int glitchSectionSize = structureJSON.getInt("glitchSectionSize");
     
     // parse the shafts 2d int array
-    JSONArray shaftsJSON = patternJSON.getJSONArray("shafts");
+    JSONArray shaftsJSON = structureJSON.getJSONArray("shafts");
     int[][] shafts = new int[shaftsJSON.size()][0];
     for (int j = 0; j < shaftsJSON.size(); j++) {
 
@@ -435,17 +435,17 @@ Pattern[] importJSONPatterns(String filename) {
       shafts[j] = shaft;
     }
 
-    JSONArray threadingJSON = patternJSON.getJSONArray("threading");
+    JSONArray threadingJSON = structureJSON.getJSONArray("threading");
     int[] threadingBase = new int[threadingJSON.size()];
     for (int j = 0; j < threadingJSON.size(); j++) {
       threadingBase[j] = threadingJSON.getInt(j);      
     }
 
-    Pattern pattern = new Pattern(name, numShafts, shafts, threadingBase, glitchSectionSize);
-    patterns[i] = pattern;
+    Structure structure = new Structure(name, numShafts, shafts, threadingBase, glitchSectionSize);
+    structures[i] = structure;
   }
 
-  return patterns;
+  return structures;
 }
 
 boolean arrayContains(int[] array, int check) {
@@ -521,7 +521,7 @@ class RowData {
   }
 }
 
-class Pattern {
+class Structure {
   String name;
   int numShafts;
   int[][] shafts;
@@ -529,7 +529,7 @@ class Pattern {
   int glitchSectionSize;
 
   // constructor
-  Pattern(String name_, int numShafts_, int[][] shafts_, int[] threading_, int glitchSectionSize_) {
+  Structure(String name_, int numShafts_, int[][] shafts_, int[] threading_, int glitchSectionSize_) {
     name = name_;
     numShafts = numShafts_;
     shafts = shafts_;
